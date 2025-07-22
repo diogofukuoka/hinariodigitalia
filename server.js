@@ -706,7 +706,7 @@ app.post('/sugerir-hinos', async (req, res) => {
       return res.status(400).json({ error: 'O tema é obrigatório.' });
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
     // --- MELHORIA 1: Formatar os dados para a IA ler melhor ---
     const hinosFormatados = hinosData.map(hino => {
