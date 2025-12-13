@@ -706,7 +706,7 @@ app.post('/sugerir-hinos', async (req, res) => {
       return res.status(400).json({ error: 'O tema é obrigatório.' });
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-3.0-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     // --- MELHORIA 1: Formatar os dados para a IA ler melhor ---
     const hinosFormatados = hinosData.map(hino => {
@@ -748,4 +748,5 @@ app.listen(port, () => {
   // Sugestão para facilitar o acesso, caso tenha renomeado o arquivo:
   console.log('Abra seu navegador e acesse: http://localhost:3000/index.html');
 });
+
 
