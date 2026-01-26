@@ -742,12 +742,15 @@ app.post('/sugerir-hinos', async (req, res) => {
     res.status(500).json({ error: 'Ocorreu um erro ao processar sua solicitação.' });
   }
 });
-
+app.get('/api/hinos', (req, res) => {
+    res.json(hinosData);
+});
 app.listen(port, () => {
   console.log(`Servidor rodando em http://localhost:${port}`);
   // Sugestão para facilitar o acesso, caso tenha renomeado o arquivo:
   console.log('Abra seu navegador e acesse: http://localhost:3000/index.html');
 });
+
 
 
 
