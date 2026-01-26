@@ -690,8 +690,9 @@ const hinosData = [
   { numero: 762, titulo: "Estrada Real", autor: "Doris Storrie", conteudo: `Uma estrada existe que franca está\nE conduz à morada de Deus.\nDa cruz onde Cristo Jesus sofreu\nÉ que parte o caminho dos céus.\nExultai, ó peregrinos,\nE louvores mil rendei!\nÉ dourada a nossa estrada!\nVamos ver nosso amado Rei!` },
   { numero: 763, titulo: "O que Importa", autor: "Kenneth Leslie Cox", conteudo: `Uma coisa só nos importa\nNeste mundo enganador:\nÉ que nossas vidas brilhem\nEm louvor do Salvador.\nVigiemos, pois, e oremos,\nTrabalhemos com amor\nE seremos testemunhas\nPara a glória do Senhor.` },
   { numero: 764, titulo: "Graças damos", autor: "William Anglin", conteudo: `Graças damos-Te, Senhor,\nE nossa adoração,\nPois Tu és digno de louvor\nDe todo o coração.\nAleluia! Aleluia!\nHonra seja a Ti, Jesus!\nAleluia! Aleluia!\nTu morreste sobre a cruz.\nAleluia! Aleluia!\nGlória a Ti! Amém.` }
-       // ... e assim por diante para todos os 764 hinos.
-       ];
+      // ... (Mantenha aqui todos os outros hinos que você já tinha no seu arquivo original. 
+  // O importante é que a variável hinosData contenha TUDO).
+];
 
 const app = express();
 const port = 3000;
@@ -751,5 +752,6 @@ app.post('/sugerir-hinos', async (req, res) => {
 app.listen(port, () => {
   console.log(`Servidor rodando em http://localhost:${port}`);
 });
+
 
 
