@@ -1087,7 +1087,7 @@
             try {
                 // Inicializa a IA
                 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-                const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+                const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
                 // Prepara os dados para a IA (converte a lista de hinos em texto)
                 const hinosTexto = hinosData.map(h => `Hino ${h.numero} - ${h.titulo}\nLetra: ${h.conteudo}`).join('\n---\n');
@@ -1169,6 +1169,7 @@
   </script>
 </body>
 </html>
+
 
 
 
