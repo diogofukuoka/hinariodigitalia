@@ -4,6 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Hinário Digital com IA</title>
+  
+  <!-- 1. CONFIGURAÇÃO DA IMPORTAÇÃO DA IA (IMPORT MAP) -->
+  <script type="importmap">
+    {
+      "imports": {
+        "@google/generative-ai": "https://esm.run/@google/generative-ai"
+      }
+    }
+  </script>
+
   <style>
     body { 
         background-color: #f4f4f9; 
@@ -165,13 +175,64 @@
         }
     }
   </style>
-  <!-- Importante: Tipo module para usar o import do Gemini -->
+</head>
+<body>
+  <div class="container">
+    
+    <div id="secao-solicitados" style="display: none;">
+      <h2 style="margin-top:0;">Hinos cantados hoje</h2>
+      <div id="lista-historico"></div>
+      <button id="botao-limpar-historico">Apagar histórico de hinos cantados</button>
+    </div>
+
+    <div id="secao-favoritos" style="display: none;">
+      <button class="botao-voltar-favoritos" onclick="mostrarIndice()">← Voltar ao Índice</button>
+      <h2 style="margin-top:0;">Hinos Favoritos</h2>
+      <div id="lista-favoritos"></div>
+    </div>
+
+    <div id="secao-gemini" style="display: none;">
+        <button class="botao-voltar-ia" onclick="mostrarIndice()">← Voltar ao Índice</button>
+        <h2 style="margin-top: 20px;">Sugestão de Hinos por Assunto</h2>
+        <input type="text" id="caixaDeTemaIA" placeholder="Ex: Salvação, Amor de Deus, Gratidão...">
+        <button id="botaoBuscarIA">Buscar Hinos com IA</button>
+        <div id="resultadoIA">
+            <p id="loading-ia" class="loading" style="display:none;">Analisando hinos e buscando sugestões... Por favor, aguarde.</p>
+        </div>
+    </div>
+
+    <div id="top-bar" style="display: none;">
+        <div class="botoes-navegacao">
+            <button id="btn-voltar-indice-topo" class="botao-navegacao">← Voltar ao Índice</button>
+            <button id="btn-voltar-favoritos-topo" class="botao-navegacao">← Voltar aos Favoritos</button>
+        </div>
+        <div id="zoom-controls">
+            <button id="botao-zoom-out" class="zoom-button">-</button>
+            <button id="botao-zoom-in" class="zoom-button">+</button>
+        </div>
+    </div>
+
+    <div id="secao-indice">
+        <h1>Hinário Digital</h1>
+        <p class="versiculo-subtitulo">"Tudo quanto tem fôlego louve ao SENHOR. Louvai ao SENHOR." (Sl 150:6)</p>
+        <button id="botao-ver-favoritos">Ver Hinos Favoritos ⭐</button>
+        <button id="botao-sugestao-ia">Sugestão de Hinos por Assunto 🧠</button>
+        <input type="text" id="caixaDeBusca" placeholder="Buscar por número, título ou letra...">
+        <ul id="listaDeHinos"></ul>
+    </div>
+
+    <div id="secao-conteudo"></div>
+
+  </div>
+
+  <!-- 2. SCRIPT PRINCIPAL DO TIPO MODULE -->
   <script type="module">
-    import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
+    // Importa a IA do Google
+    import { GoogleGenerativeAI } from "@google/generative-ai";
 
     // =================================================================
-    // COLOQUE SUA API KEY DO GOOGLE GEMINI AQUI DENTRO DAS ASPAS:
-    const GEMINI_API_KEY = AIzaSyBFjDaVMxKnPW4cdbUHezpEKCDKzTm78mA; 
+    // COLOQUE SUA API KEY AQUI DENTRO DAS ASPAS:
+    const GEMINI_API_KEY = "AIzaSyBFjDaVMxKnPW4cdbUHezpEKCDKzTm78mA"; 
     // =================================================================
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -1013,7 +1074,7 @@
                 return;
             }
 
-            if (!GEMINI_API_KEY || GEMINI_API_KEY === AIzaSyBFjDaVMxKnPW4cdbUHezpEKCDKzTm78mA) {
+            if (!GEMINI_API_KEY || GEMINI_API_KEY === "AIzaSyBFjDaVMxKnPW4cdbUHezpEKCDKzTm78mA") {
                 resultadoIA.innerHTML = '<p style="color:red;">Erro: API Key não configurada no código. Abra o arquivo index.html e adicione sua chave do Google Gemini.</p>';
                 return;
             }
@@ -1108,5 +1169,3 @@
   </script>
 </body>
 </html>
-
-
