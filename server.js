@@ -2,7 +2,8 @@ const express = require('express');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 require('dotenv').config();
 
- const hinosData = [
+// LISTA COMPLETA DE HINOS (Base de dados)
+const hinosData = [
             { numero: 1, titulo: "A Divinal Mensagem", autor: "Stuart Edmund Mc Nair", conteudo: `1. A divinal mensagem\nAvisa ao pecador\nQue Deus amou ao mundo\nE deu-lhe um Salvador.\nE quem em Jesus Cristo crer\nEterna bênção há de ter.\n\n2. "Pecado traz a morte",\nAssim Deus declarou,\nE o homem sem desculpa\nPerante Deus ficou.\nMas quem em Jesus Cristo crer\nEterna bênção há de ter.\n\n3. O Pai mandou Seu Filho\nPra vida nos trazer,\nMas Ele não podia\nDar vida sem morrer.\nAgora quem em Cristo crer\nEterna bênção há de ter.\n\n4. Não veio Cristo ao mundo\nA fim de o condenar,\nMas quis, por Sua morte,\nOs homens resgatar.\nE quem em Jesus Cristo crer\nEterna bênção há de ter.` },
   { numero: 2, titulo: "A Linda História", autor: "Salomão Luiz Ginsburg", conteudo: `1. Cantarei a linda história\nDe Jesus, o Salvador,\nQue deixou Seu lar na glória\nPra salvar o pecador.\n\nCantarei a linda história\nDe Jesus, meu Salvador;\nCantarei na Sua glória\nCom os santos, com fervor.\n\n2. Eu perdi-me e Ele achou-me\nLonge, longe do meu lar;\nAbraçou-me então, tomou-me\nPra com Ele eu ir morar.\n\n3. Jesus Cristo deparou-me\nQuando fraco, pra morrer;\nAs feridas Ele untou-me\nE livrou-me com poder.\n\n4. Dias negros inda tenho,\nSofrimento e dissabor;\nMas a Ele eu tudo exponho\nE me livra com amor.` },
   { numero: 3, titulo: "Convite", autor: "Stuart Edmund Mc Nair", conteudo: `1. A Jesus Cristo vem sem tardar,\nEle te chama com terno amor. \nSempre querendo te abençoar,\nEi-lO a dizer-te: "Vem!"\n\nOh, quão grande a Sua salvação!\nQuão perfeita a Sua redenção!\nBênção eterna os salvos terão\nCom seu Senhor Jesus.\n\n2. Ouve Quem fala sempre, do céu;\nOh, não desprezes tal Salvador!\nVisto que em prol dos homens morreu,\nPode dizer-te: "Vem!"\n\n3. Sabes que Cristo quer hoje encher\nTeu coração de gozo e de paz?\nE, porque anela dar-te prazer,\nTorna a dizer-te: "Vem!"` },
@@ -690,7 +691,7 @@ require('dotenv').config();
   { numero: 763, titulo: "O que Importa", autor: "Kenneth Leslie Cox", conteudo: `Uma coisa só nos importa\nNeste mundo enganador:\nÉ que nossas vidas brilhem\nEm louvor do Salvador.\nVigiemos, pois, e oremos,\nTrabalhemos com amor\nE seremos testemunhas\nPara a glória do Senhor.` },
   { numero: 764, titulo: "Graças damos", autor: "William Anglin", conteudo: `Graças damos-Te, Senhor,\nE nossa adoração,\nPois Tu és digno de louvor\nDe todo o coração.\nAleluia! Aleluia!\nHonra seja a Ti, Jesus!\nAleluia! Aleluia!\nTu morreste sobre a cruz.\nAleluia! Aleluia!\nGlória a Ti! Amém.` }
        // ... e assim por diante para todos os 764 hinos.
-        ];
+       ];
 
 const app = express();
 const port = 3000;
@@ -699,6 +700,12 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 app.use(express.json());
 app.use(express.static('.'));
 
+// --- ROTA NOVA: Envia a lista de hinos para o Frontend ---
+app.get('/api/hinos', (req, res) => {
+    res.json(hinosData);
+});
+
+// --- ROTA IA: Sugere hinos baseados no tema ---
 app.post('/sugerir-hinos', async (req, res) => {
   try {
     const { tema } = req.body;
@@ -708,25 +715,23 @@ app.post('/sugerir-hinos', async (req, res) => {
 
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-    // --- MELHORIA 1: Formatar os dados para a IA ler melhor ---
+    // Formatar os dados para a IA ler melhor
     const hinosFormatados = hinosData.map(hino => {
         return `Hino ${hino.numero} - ${hino.titulo}\nLetra:\n${hino.conteudo}`;
     }).join('\n\n---\n\n');
 
-    // --- MELHORIA 2: Prompt muito mais detalhado e específico ---
     const prompt = `
-      Você é um assistente especialista em teologia e hinologia, encarregado de selecionar os hinos mais apropriados para um tema de pregação.
-      Sua tarefa é analisar o tema fornecido e, com base na lista de hinos e suas letras, selecionar os hinos que melhor refletem o sentimento e a mensagem do tema.
-
+      Você é um assistente especialista em teologia e hinologia.
+      Sua tarefa é analisar o tema fornecido e selecionar os hinos mais apropriados.
+      
       O tema é: "${tema}".
 
-      Regras para a sua resposta:
-      1. Sua resposta deve ser uma lista ordenada, do hino mais relevante para o menos relevante.
-      2. Liste no máximo 15 hinos para manter a lista focada e útil.
-      3. O formato de cada linha deve ser exatamente: "Hino [número] - [título]".
-      4. Não inclua nenhum texto, explicação, introdução ou conclusão. Responda APENAS com a lista de hinos.
+      Regras:
+      1. Liste no máximo 10 hinos.
+      2. O formato de cada linha deve ser EXATAMENTE: "Hino [número] - [título]".
+      3. Não inclua introdução ou conclusão. Apenas a lista.
 
-      A base de hinos para sua análise é a seguinte:
+      Base de hinos:
       ---
       ${hinosFormatados}
     `;
@@ -742,16 +747,9 @@ app.post('/sugerir-hinos', async (req, res) => {
     res.status(500).json({ error: 'Ocorreu um erro ao processar sua solicitação.' });
   }
 });
-app.get('/api/hinos', (req, res) => {
-    res.json(hinosData);
-});
+
 app.listen(port, () => {
   console.log(`Servidor rodando em http://localhost:${port}`);
-  // Sugestão para facilitar o acesso, caso tenha renomeado o arquivo:
-  console.log('Abra seu navegador e acesse: http://localhost:3000/index.html');
 });
-
-
-
 
 
