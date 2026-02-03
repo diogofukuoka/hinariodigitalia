@@ -1127,7 +1127,31 @@
         };
 
         const adicionarAoHistorico = (e) => { const o = historicoHinos.indexOf(e); o > -1 && historicoHinos.splice(o, 1), historicoHinos.unshift(e), localStorage.setItem("hinarioHistorico", JSON.stringify(historicoHinos)) };
-        const atualizarExibicaoHistorico = () => { const e = document.getElementById("lista-historico"); if (e.innerHTML = "", 0 === historicoHinos.length) return void (secoes.historico.style.display = "none"); secoes.historico.style.display = "block", historicoHinos.forEach(o => { const i = hinosData.find(e => e.numero === o); i && (item = document.createElement("div"), item.className = "item-historico", item.textContent = `${i.numero} - ${i.titulo}`, item.onclick = () => mostrarHino(i.numero), e.appendChild(item)) }) };
+        
+        // FUNÇÃO CORRIGIDA PARA EVITAR O ERRO DE TELA BRANCA
+        const atualizarExibicaoHistorico = () => { 
+            const e = document.getElementById("lista-historico"); 
+            e.innerHTML = "";
+            
+            if (historicoHinos.length === 0) {
+                secoes.historico.style.display = "none";
+                return;
+            }
+            
+            secoes.historico.style.display = "block";
+            
+            historicoHinos.forEach(o => { 
+                const i = hinosData.find(e => e.numero === o); 
+                if (i) {
+                    const item = document.createElement("div"); // Corrigido: adicionado 'const'
+                    item.className = "item-historico";
+                    item.textContent = `${i.numero} - ${i.titulo}`;
+                    item.onclick = () => mostrarHino(i.numero);
+                    e.appendChild(item);
+                }
+            });
+        };
+
         window.toggleFavorito = (e) => { const o = hinosFavoritos.indexOf(e); o > -1 ? hinosFavoritos.splice(o, 1) : hinosFavoritos.push(e), localStorage.setItem("hinarioFavoritos", JSON.stringify(hinosFavoritos)), atualizarBotaoFavorito(e) };
         const atualizarBotaoFavorito = (e) => { const o = document.getElementById(`botao-favorito-${e}`); hinosFavoritos.includes(e) ? (o.classList.add("ativo"), o.textContent = "\u2605") : (o.classList.remove("ativo"), o.textContent = "\u2606") };
         const aplicarZoom = () => { const e = document.querySelector('.conteudo-hino[style*="display: block"]'); e && (e.querySelector("pre").style.fontSize = `${tamanhoFonteAtual}em`) };
@@ -1242,4 +1266,3 @@
   </script>
 </body>
 </html>
-
