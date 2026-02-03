@@ -950,7 +950,6 @@
   { numero: 762, titulo: "Estrada Real", autor: "Doris Storrie", conteudo: `Uma estrada existe que franca está\nE conduz à morada de Deus.\nDa cruz onde Cristo Jesus sofreu\nÉ que parte o caminho dos céus.\nExultai, ó peregrinos,\nE louvores mil rendei!\nÉ dourada a nossa estrada!\nVamos ver nosso amado Rei!` },
   { numero: 763, titulo: "O que Importa", autor: "Kenneth Leslie Cox", conteudo: `Uma coisa só nos importa\nNeste mundo enganador:\nÉ que nossas vidas brilhem\nEm louvor do Salvador.\nVigiemos, pois, e oremos,\nTrabalhemos com amor\nE seremos testemunhas\nPara a glória do Senhor.` },
   { numero: 764, titulo: "Graças damos", autor: "William Anglin", conteudo: `Graças damos-Te, Senhor,\nE nossa adoração,\nPois Tu és digno de louvor\nDe todo o coração.\nAleluia! Aleluia!\nHonra seja a Ti, Jesus!\nAleluia! Aleluia!\nTu morreste sobre a cruz.\nAleluia! Aleluia!\nGlória a Ti! Amém.` }
-
         ];
 
         const container = document.querySelector('.container');
@@ -1128,7 +1127,6 @@
 
         const adicionarAoHistorico = (e) => { const o = historicoHinos.indexOf(e); o > -1 && historicoHinos.splice(o, 1), historicoHinos.unshift(e), localStorage.setItem("hinarioHistorico", JSON.stringify(historicoHinos)) };
         
-        // FUNÇÃO CORRIGIDA PARA EVITAR O ERRO DE TELA BRANCA
         const atualizarExibicaoHistorico = () => { 
             const e = document.getElementById("lista-historico"); 
             e.innerHTML = "";
@@ -1143,7 +1141,7 @@
             historicoHinos.forEach(o => { 
                 const i = hinosData.find(e => e.numero === o); 
                 if (i) {
-                    const item = document.createElement("div"); // Corrigido: adicionado 'const'
+                    const item = document.createElement("div"); 
                     item.className = "item-historico";
                     item.textContent = `${i.numero} - ${i.titulo}`;
                     item.onclick = () => mostrarHino(i.numero);
@@ -1185,18 +1183,20 @@
                 // Prepara os dados para a IA (converte a lista de hinos em texto)
                 const hinosTexto = hinosData.map(h => `Hino ${h.numero} - ${h.titulo}\nLetra: ${h.conteudo}`).join('\n---\n');
 
+                // PROMPT ATUALIZADO PARA FOCAR NA LETRA
                 const prompt = `
                     Você é um assistente especialista em teologia e hinologia.
-                    Sua tarefa é analisar o tema fornecido e selecionar os hinos mais apropriados da lista abaixo.
+                    Sua tarefa é analisar profundamente a LETRA (conteúdo) de cada hino na lista abaixo para encontrar correspondências com o tema.
+                    NÃO se baseie apenas nos títulos. Busque o significado teológico nos versos.
                     
-                    O tema é: "${tema}".
+                    O tema de busca é: "${tema}".
 
                     Regras:
-                    1. Liste no máximo 10 hinos que tenham forte relação com o tema.
+                    1. Liste no máximo 10 hinos que tenham forte relação teológica ou lírica com o tema.
                     2. O formato de cada linha deve ser EXATAMENTE: "Hino [número] - [título]".
                     3. Não inclua introdução, conclusão ou explicações. Apenas a lista.
 
-                    Base de hinos:
+                    Base de hinos (Título e Letra):
                     ---
                     ${hinosTexto}
                 `;
