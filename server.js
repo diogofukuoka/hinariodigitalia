@@ -824,7 +824,7 @@ ${candidatesText}`;
     let listaHinos = null;
 
     if (ai) {
-      const modelsToTry = ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'];
+      const modelsToTry = ['gemini-3.1-flash-lite', 'gemini-2.5-flash'];
       for (const model of modelsToTry) {
         try {
           const result = await gerarComTimeout(ai, model, {
@@ -832,7 +832,7 @@ ${candidatesText}`;
             config: {
               responseMimeType: "application/json"
             }
-          }, 15000);
+          }, 20000);
 
           if (result && result.text && result.text.trim()) {
             const parsed = JSON.parse(result.text.trim());
@@ -946,12 +946,12 @@ Instruções para a resposta:
     let analiseTexto = '';
 
     if (ai) {
-      const modelsToTry = ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'];
+      const modelsToTry = ['gemini-3.1-flash-lite', 'gemini-2.5-flash'];
       for (const model of modelsToTry) {
         try {
           const result = await gerarComTimeout(ai, model, {
             contents: prompt
-          }, 12000);
+          }, 25000);
           if (result && result.text && result.text.trim()) {
             analiseTexto = result.text.trim();
             break;

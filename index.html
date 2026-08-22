@@ -1283,7 +1283,7 @@
 
         const cacheConsideracoes = {};
 
-        // Helper para ranking local de hinos (usado em buscas locais ou fallback)
+        // Helper para ranking de hinos (usado para otimizar busca por tema)
         const rankHinosLocal = (termo) => {
             const clean = (termo || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\w\s]/g, " ").trim();
             const words = clean.split(/\s+/).filter(w => w.length >= 3);
@@ -1313,36 +1313,6 @@
             });
             scored.sort((a, b) => b.score - a.score);
             return scored.filter(s => s.score > 0).slice(0, 10).map(s => s.hino);
-        };
-
-        // Gerador de análise teológica local robusto para fallback
-        const gerarAnaliseLocal = (hino, tema) => {
-            const estrofes = (hino.conteudo || "").split('\n\n').filter(Boolean);
-            const primeiroTrecho = estrofes[0] ? estrofes[0].replace(/\n/g, ' ') : hino.titulo;
-            const segundoTrecho = estrofes.length > 1 ? estrofes[1].replace(/\n/g, ' ') : '';
-            const termo = (tema || '').trim();
-
-            let enquadramento = '';
-            if (termo) {
-                enquadramento = `### Enquadramento Teológico com "${termo}"\n` +
-                    `O Hino ${hino.numero} - "${hino.titulo}" (de autoria de ${hino.autor || 'tradicional'}) aborda diretamente a essência de **${termo}**, apontando para a providência divina, a fé salvadora e o consolo nas promessas do Evangelho.\n\n`;
-            } else {
-                enquadramento = `### Considerações Teológicas sobre o Hino ${hino.numero}\n` +
-                    `O Hino "${hino.titulo}" (composto por ${hino.autor || 'autor cristão'}) constitui um hino de profunda devoção, adoração e confissão de fé nas verdades eternas das Sagradas Escrituras.\n\n`;
-            }
-
-            let citacoes = `### Frases e Versos em Destaque da Letra\n` +
-                `> "${primeiroTrecho}"\n\n`;
-            if (segundoTrecho) {
-                citacoes += `> "${segundoTrecho}"\n\n`;
-            }
-
-            let consideracoes = `### Ensinamentos Espirituais e Fundamentação Bíblica\n` +
-                `* **Obra Redentora e Graça:** Os versos exaltam a suficiência do sacrifício de Jesus Cristo como a rocha inabalável de nossa redenção (cf. Romanos 5:1-2; Efésios 2:8-9).\n` +
-                `* **Comunhão e Segurança na Fé:** Encoraja a perseverança da alma em constante oração e entrega sob o cuidado do Bom Pastor (cf. Salmos 23:1-6; Filipenses 4:6-7).\n` +
-                `* **Esperança e Louvor Perpétuo:** Convida a congregação a louvar com júbilo e vigilância na alegre certeza da vida eterna (cf. Tito 2:13; Hebreus 13:15).`;
-
-            return enquadramento + citacoes + consideracoes;
         };
 
         const carregarEExibirConsideracoes = async (numeroHino, tema, boxElement, btnElement, contexto = 'indice') => {
@@ -1388,15 +1358,13 @@
             
             boxElement.innerHTML = `
                 <div class="box-consideracoes-loading">
-                    <span>✨ Carregando análise teológica do Hino ${numeroHino} (${tituloHino})...</span>
+                    <span>✨ Consultando a IA para gerar a análise teológica completa do Hino ${numeroHino} (${tituloHino})...</span>
                 </div>
             `;
 
-            let analiseTexto = '';
-
             try {
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 20000);
+                const timeoutId = setTimeout(() => controller.abort(), 25000);
 
                 const response = await fetch('/analisar-hino', {
                     method: 'POST',
@@ -1406,25 +1374,18 @@
                 });
                 clearTimeout(timeoutId);
 
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data && data.analise) {
-                        analiseTexto = data.analise;
-                    }
+                if (!response.ok) {
+                    throw new Error('Falha ao obter análise do hino.');
                 }
-            } catch (err) {
-                console.warn("Backend indisponível ou timeout, utilizando análise local integrada:", err);
-            }
 
-            // Se não obteve do backend, gera análise local instantaneamente
-            if (!analiseTexto && hinoObj) {
-                analiseTexto = gerarAnaliseLocal(hinoObj, termoPesquisa);
-            }
+                const data = await response.json();
+                if (!data || !data.analise) {
+                    throw new Error('Resposta sem análise válida.');
+                }
 
-            if (analiseTexto) {
-                const analiseHtml = formatarMarkdownParaHtml(analiseTexto);
+                const analiseHtml = formatarMarkdownParaHtml(data.analise);
                 const badgeHtml = termoPesquisa 
-                    ? `<span class="badge-tema-analisado">🔎 Assunto: "${termoPesquisa}"</span>` 
+                    ? `<span class="badge-tema-analisado">🔎 Assunto pesquisado: "${termoPesquisa}"</span>` 
                     : `<span class="badge-tema-analisado">🕊️ Considerações Teológicas e Doutrinárias</span>`;
 
                 const conteudoFinal = `
@@ -1434,21 +1395,33 @@
                     </div>
                     <div class="box-consideracoes-acoes">
                         <button class="btn-acao-box btn-acao-ler-hino">📖 Ler Letra Completa</button>
-                        <button class="btn-acao-box btn-acao-fechar-box">✕ Fechar</button>
+                        <button class="btn-acao-box btn-acao-fechar-box">✕ Fechar Considerações</button>
                     </div>
                 `;
 
                 cacheConsideracoes[cacheKey] = conteudoFinal;
                 renderConteudo(conteudoFinal);
-            } else {
+
+            } catch (err) {
+                console.error("Erro ao carregar considerações da IA:", err);
+                
+                // Em caso de falha de conexão, permite tentar novamente ou ler o hino
                 boxElement.innerHTML = `
                     <div style="color: #c0392b; padding: 12px;">
-                        <p>Não foi possível carregar as considerações no momento.</p>
-                        <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <p>⚠️ Não foi possível obter as considerações da IA no momento.</p>
+                        <div style="display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap;">
                             <button class="btn-acao-box btn-acao-ler-hino" onclick="mostrarHino(${numeroHino}, '${contexto}')">📖 Ler Letra do Hino</button>
+                            <button class="btn-acao-box" id="btn-recarregar-${numeroHino}" style="background: #2980b9; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 0.9em;">🔄 Tentar Novamente</button>
                         </div>
                     </div>
                 `;
+                const btnRecarregar = boxElement.querySelector(`#btn-recarregar-${numeroHino}`);
+                if (btnRecarregar) {
+                    btnRecarregar.onclick = () => {
+                        delete cacheConsideracoes[cacheKey];
+                        carregarEExibirConsideracoes(numeroHino, tema, boxElement, btnElement, contexto);
+                    };
+                }
             }
         };
         window.carregarEExibirConsideracoes = carregarEExibirConsideracoes;
