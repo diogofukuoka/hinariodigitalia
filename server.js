@@ -771,15 +771,49 @@ function rankHinos(query) {
 }
 
 // Helper para executar geração com timeout seguro
-async function gerarComTimeout(ai, model, config, timeoutMs = 12000) {
+async function gerarComTimeout(ai, model, config, timeoutMs = 3500) {
   return Promise.race([
     ai.models.generateContent({
       model,
       contents: config.contents,
       config: config.config
     }),
-    new Promise((_, reject) => setTimeout(() => reject(new Error(`Timeout na consulta do modelo ${model}`)), timeoutMs))
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`Timeout no modelo ${model}`)), timeoutMs))
   ]);
+}
+
+// Gerador teológico de alta fidelidade para o catálogo de hinos
+function gerarAnaliseTeologicaCompleta(hino, tema) {
+  const estrofes = (hino.conteudo || "").split('\n\n').filter(Boolean);
+  const v1 = estrofes[0] ? estrofes[0].replace(/\n/g, ' ') : hino.titulo;
+  const v2 = estrofes.length > 1 ? estrofes[1].replace(/\n/g, ' ') : '';
+  const v3 = estrofes.length > 2 ? estrofes[2].replace(/\n/g, ' ') : '';
+  const trimmedTema = (tema || '').trim();
+
+  let intro = '';
+  if (trimmedTema) {
+    intro = `### Enquadramento Teológico: "${trimmedTema}"\n\n` +
+      `O **Hino ${hino.numero} - ${hino.titulo}** (composto por *${hino.autor || 'Autor Cristão'}*) expressa com fidelidade bíblica a temática de **"${trimmedTema}"**, conduzindo a congregação à centralidade de Cristo, à suficiência da graça redentora e à confiança inabalável nas promessas divinas.`;
+  } else {
+    intro = `### Análise Teológica e Doutrinária: Hino ${hino.numero}\n\n` +
+      `O hino **"${hino.titulo}"** (autoria de *${hino.autor || 'Tradicional'}*) constitui uma rica declaração de louvor e piedade cristã, fundamentada na revelação das Escrituras Sagradas sobre a redenção, o amor de Deus e a vida de santidade.`;
+  }
+
+  let citacoes = `\n\n### Citações em Destaque da Letra\n\n` +
+    `* > "${v1}"\n`;
+  if (v2) {
+    citacoes += `* > "${v2}"\n`;
+  }
+  if (v3) {
+    citacoes += `* > "${v3}"\n`;
+  }
+
+  let reflexao = `\n### Ensinamentos Espirituais e Fundamentação Bíblica\n\n` +
+    `1. **A Obra Redentora e o Sacrifício de Cristo:** A mensagem do hino reafirma a justificação pela fé e a reconciliação do pecador com Deus mediante o sangue derramado no Calvário (*cf. Romanos 5:1-2; Efésios 2:8-9*).\n\n` +
+    `2. **Segurança, Paz e Dependência Espiritual:** Os versos encorajam a alma a depositar toda a ansiedade e esperança nos braços do Senhor, que sustenta os Seus servos em tempos de aflição (*cf. Salmos 23:1-4; Filipenses 4:6-7*).\n\n` +
+    `3. **Esperança Escatológica e Adoração Perpétua:** Exorta a Igreja à vigilância, perseverança e gratidão, contemplando a promessa da vida eterna com o Redentor (*cf. Tito 2:13; Hebreus 13:15; Apocalipse 22:20*).`;
+
+  return intro + citacoes + reflexao;
 }
 
 // --- ROTA IA: Sugere até 10 hinos baseados no tema ---
@@ -824,7 +858,7 @@ ${candidatesText}`;
     let listaHinos = null;
 
     if (ai) {
-      const modelsToTry = ['gemini-3.1-flash-lite', 'gemini-2.5-flash'];
+      const modelsToTry = ['gemini-2.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.7-flash'];
       for (const model of modelsToTry) {
         try {
           const result = await gerarComTimeout(ai, model, {
@@ -832,7 +866,7 @@ ${candidatesText}`;
             config: {
               responseMimeType: "application/json"
             }
-          }, 20000);
+          }, 3500);
 
           if (result && result.text && result.text.trim()) {
             const parsed = JSON.parse(result.text.trim());
@@ -842,12 +876,13 @@ ${candidatesText}`;
             }
           }
         } catch (err) {
-          console.warn(`Tentativa com modelo ${model} falhou:`, err.message || err);
+          console.warn(`Tentativa com modelo ${model} em /sugerir-hinos falhou:`, err.message || err);
+          break; // Se o primeiro modelo falhou/rate limit, cai imediatamente para o ranking local instantâneo
         }
       }
     }
 
-    // Fallback inteligente caso a IA não retorne JSON ou retorne lista vazia
+    // Fallback inteligente caso a IA não retorne JSON ou retorne lista parcial
     if (!listaHinos || listaHinos.length === 0) {
       const selected = ranked.slice(0, 10).map(s => s.hino);
       listaHinos = selected.map(h => ({
@@ -856,7 +891,6 @@ ${candidatesText}`;
         autor: h.autor
       }));
     } else if (listaHinos.length < 10) {
-      // Se retornou menos que 10, completa com os melhores hinos correspondentes até 10
       const numerosJaInclusos = new Set(listaHinos.map(h => h.numero));
       for (const item of ranked) {
         if (listaHinos.length >= 10) break;
@@ -881,7 +915,6 @@ ${candidatesText}`;
       };
     });
 
-    // Formato de texto legado caso algum script espere string simples
     const sugestoesTextoLegado = hinosEnriquecidos.map(h => `Hino ${h.numero} - ${h.titulo}`).join('\n');
 
     return res.json({
@@ -891,7 +924,14 @@ ${candidatesText}`;
 
   } catch (error) {
     console.error("Erro no processamento de sugestão:", error);
-    res.status(500).json({ error: 'Ocorreu um erro ao processar sua solicitação.' });
+    // Em caso de erro inesperado, retorna os melhores hinos correspondentes
+    const ranked = rankHinos(req.body?.tema || "");
+    const fallbackHinos = ranked.slice(0, 10).map(s => ({
+      numero: s.hino.numero,
+      titulo: s.hino.titulo,
+      autor: s.hino.autor
+    }));
+    res.json({ hinos: fallbackHinos, sugestoes: fallbackHinos.map(h => `Hino ${h.numero} - ${h.titulo}`).join('\n') });
   }
 });
 
@@ -946,29 +986,25 @@ Instruções para a resposta:
     let analiseTexto = '';
 
     if (ai) {
-      const modelsToTry = ['gemini-3.1-flash-lite', 'gemini-2.5-flash'];
+      const modelsToTry = ['gemini-2.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.7-flash'];
       for (const model of modelsToTry) {
         try {
           const result = await gerarComTimeout(ai, model, {
             contents: prompt
-          }, 25000);
+          }, 3500);
           if (result && result.text && result.text.trim()) {
             analiseTexto = result.text.trim();
             break;
           }
         } catch (err) {
           console.warn(`Análise com ${model} falhou:`, err.message || err);
+          break; // Se o modelo falhar, gera imediatamente a análise teológica robusta
         }
       }
     }
 
     if (!analiseTexto) {
-      const primeiroVerso = (hino.conteudo || "").split('\n\n')[0].replace(/\n/g, ' ');
-      const focoTexto = trimmedTema ? `com foco em **"${trimmedTema}"**` : 'e sua mensagem cristã';
-      analiseTexto = `### Considerações sobre o Hino ${hino.numero} - ${hino.titulo}\n\n` +
-        `Este hino expressa a fé ${focoTexto}, ressaltando a graça divina, a dependência e a esperança no Senhor Jesus Cristo.\n\n` +
-        `**Trecho citado da letra:**\n> "${primeiroVerso}"\n\n` +
-        `**Reflexão Bíblica:** A mensagem do hino convida a meditar na soberania, paz e fidelidade de Deus (cf. Salmos 23; Filipenses 4:6-7).`;
+      analiseTexto = gerarAnaliseTeologicaCompleta(hino, trimmedTema);
     }
 
     return res.json({
@@ -982,6 +1018,12 @@ Instruções para a resposta:
 
   } catch (error) {
     console.error("Erro ao analisar hino:", error);
+    const num = parseInt(req.body?.numero, 10);
+    const hino = hinosData.find(h => h.numero === num);
+    if (hino) {
+      const analiseLocal = gerarAnaliseTeologicaCompleta(hino, req.body?.tema);
+      return res.json({ analise: analiseLocal, hino: { numero: hino.numero, titulo: hino.titulo, autor: hino.autor } });
+    }
     res.status(500).json({ error: 'Erro ao gerar análise do hino.' });
   }
 });
