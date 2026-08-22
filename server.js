@@ -782,7 +782,7 @@ async function gerarComTimeout(ai, model, config, timeoutMs = 12000) {
   ]);
 }
 
-// --- ROTA IA: Sugere hinos baseados no tema e pré-gera considerações teológicas completas ---
+// --- ROTA IA: Sugere até 10 hinos baseados no tema ---
 app.post('/sugerir-hinos', async (req, res) => {
   try {
     const { tema } = req.body;
@@ -792,41 +792,36 @@ app.post('/sugerir-hinos', async (req, res) => {
 
     const trimmedTema = tema.trim();
     const ranked = rankHinos(trimmedTema);
-    const topCandidates = ranked.slice(0, 14).map(s => s.hino);
+    const topCandidates = ranked.slice(0, 25).map(s => s.hino);
 
     const candidatesText = topCandidates.map(h => 
       `--- HINO ${h.numero} - ${h.titulo} (Autor: ${h.autor}) ---\nLETRA:\n${h.conteudo}`
     ).join('\n\n');
 
-    const prompt = `Você é um hinólogo e teólogo cristão especialista.
-O usuário pesquisou pela seguinte frase/tema: "${trimmedTema}".
+    const prompt = `Você é um hinólogo e teólogo cristão especialista na Harpa Cristã.
+O usuário pesquisou pelo seguinte assunto/tema: "${trimmedTema}".
 
-Analise os hinos candidatos fornecidos abaixo e selecione os 5 a 7 hinos mais pertinentes ao tema.
-Para CADA hino selecionado, analise a letra completa do hino e forneça:
-1. "enquadramento": Explicação teológica de por que e como o hino se enquadra na busca ("${trimmedTema}").
-2. "citacoes": Array com 2 a 3 frases ou versos extraídos da letra do hino entre aspas ("...").
-3. "consideracoes": Considerações teológicas e ensinamentos espirituais abordados pelo hino, incluindo passagens bíblicas que afirmam tais verdades.
+Analise os hinos candidatos fornecidos abaixo e selecione até 10 hinos mais pertinentes ao tema (retorne de 8 a 10 hinos em ordem decrescente de relevância temática).
 
-Responda ESTRITAMENTE em formato JSON (um array de objetos válido), no seguinte esquema:
+Para CADA hino selecionado, retorne um objeto no JSON:
+- "numero": número do hino (inteiro)
+- "titulo": título exato do hino
+- "autor": autor do hino
+
+Responda ESTRITAMENTE em formato JSON (um array de até 10 objetos válido), no seguinte esquema:
 [
   {
-    "numero": 241,
-    "titulo": "Não Sou Meu",
-    "autor": "Henry Maxwell Wright",
-    "enquadramento": "Explicação teológica...",
-    "citacoes": [
-      "\"trecho 1 do hino\"",
-      "\"trecho 2 do hino\""
-    ],
-    "consideracoes": "Considerações teológicas com passagens bíblicas..."
+    "numero": 1,
+    "titulo": "A Divinal Mensagem",
+    "autor": "Stuart E. McNair"
   }
 ]
 
-Hinos Candidatos com Letra Completa:
+Hinos Candidatos com Letra:
 ${candidatesText}`;
 
     const ai = getGenAI();
-    let listaHinosComConsideracoes = null;
+    let listaHinos = null;
 
     if (ai) {
       const modelsToTry = ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'];
@@ -837,12 +832,12 @@ ${candidatesText}`;
             config: {
               responseMimeType: "application/json"
             }
-          }, 12000);
+          }, 15000);
 
           if (result && result.text && result.text.trim()) {
             const parsed = JSON.parse(result.text.trim());
             if (Array.isArray(parsed) && parsed.length > 0) {
-              listaHinosComConsideracoes = parsed;
+              listaHinos = parsed;
               break;
             }
           }
@@ -852,34 +847,37 @@ ${candidatesText}`;
       }
     }
 
-    // Fallback inteligente caso a IA não retorne JSON
-    if (!listaHinosComConsideracoes || listaHinosComConsideracoes.length === 0) {
-      const selected = ranked.slice(0, 6).map(s => s.hino);
-      listaHinosComConsideracoes = selected.map(h => {
-        const estrofes = (h.conteudo || "").split('\n\n').filter(Boolean);
-        const citacoesLocais = estrofes.slice(0, 2).map(e => `"${e.replace(/\n/g, ' ')}"`);
-        
-        return {
-          numero: h.numero,
-          titulo: h.titulo,
-          autor: h.autor,
-          enquadramento: `Este hino aborda o tema "${trimmedTema}" ao expressar a fé cristã, a soberania divina e a esperança eterna no Senhor.`,
-          citacoes: citacoesLocais.length > 0 ? citacoesLocais : [`"${h.titulo}"`],
-          consideracoes: `A mensagem teológica do Hino ${h.numero} convida à reflexão e edificação espiritual, amparada pelas Escrituras Sagradas.`
-        };
-      });
+    // Fallback inteligente caso a IA não retorne JSON ou retorne lista vazia
+    if (!listaHinos || listaHinos.length === 0) {
+      const selected = ranked.slice(0, 10).map(s => s.hino);
+      listaHinos = selected.map(h => ({
+        numero: h.numero,
+        titulo: h.titulo,
+        autor: h.autor
+      }));
+    } else if (listaHinos.length < 10) {
+      // Se retornou menos que 10, completa com os melhores hinos correspondentes até 10
+      const numerosJaInclusos = new Set(listaHinos.map(h => h.numero));
+      for (const item of ranked) {
+        if (listaHinos.length >= 10) break;
+        if (!numerosJaInclusos.has(item.hino.numero)) {
+          listaHinos.push({
+            numero: item.hino.numero,
+            titulo: item.hino.titulo,
+            autor: item.hino.autor
+          });
+          numerosJaInclusos.add(item.hino.numero);
+        }
+      }
     }
 
-    // Garante que cada item tenha os dados do hino oficial
-    const hinosEnriquecidos = listaHinosComConsideracoes.map(item => {
+    // Garante que cada item tenha os dados exatos do hino oficial
+    const hinosEnriquecidos = listaHinos.slice(0, 10).map(item => {
       const hinoReal = hinosData.find(h => h.numero === item.numero) || {};
       return {
         numero: item.numero,
-        titulo: item.titulo || hinoReal.titulo || `Hino ${item.numero}`,
-        autor: item.autor || hinoReal.autor || '',
-        enquadramento: item.enquadramento || '',
-        citacoes: Array.isArray(item.citacoes) ? item.citacoes : (item.citacoes ? [item.citacoes] : []),
-        consideracoes: item.consideracoes || ''
+        titulo: hinoReal.titulo || item.titulo || `Hino ${item.numero}`,
+        autor: hinoReal.autor || item.autor || ''
       };
     });
 

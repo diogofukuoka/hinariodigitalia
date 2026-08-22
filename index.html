@@ -1312,7 +1312,7 @@
                 return { hino: h, score };
             });
             scored.sort((a, b) => b.score - a.score);
-            return scored.filter(s => s.score > 0).slice(0, 6).map(s => s.hino);
+            return scored.filter(s => s.score > 0).slice(0, 10).map(s => s.hino);
         };
 
         // Gerador de análise teológica local robusto para fallback
