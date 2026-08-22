@@ -1,0 +1,6 @@
+{
+  "name": "Hinário Cristão",
+  "description": "Hinário com busca inteligente por assunto e considerações teológicas com IA",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

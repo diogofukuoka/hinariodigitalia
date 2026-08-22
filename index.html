@@ -4,16 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Hinário Digital com IA</title>
-  
-  <!-- 1. CONFIGURAÇÃO DA IMPORTAÇÃO DA IA (IMPORT MAP) -->
-  <script type="importmap">
-    {
-      "imports": {
-        "@google/generative-ai": "https://esm.run/@google/generative-ai"
-      }
-    }
-  </script>
-
   <style>
     body { 
         background-color: #f4f4f9; 
@@ -59,17 +49,63 @@
         outline: none; 
     }
     #listaDeHinos { list-style-type: none; padding: 0; }
-    #listaDeHinos li { margin-bottom: 12px; }
-    #listaDeHinos a { 
-        display: block; padding: 16px 20px; background-color: #f9f9f9; 
-        color: #34495e; text-decoration: none; border-radius: 8px; 
-        border: 1px solid #e1e1e1; font-size: 1.1em; 
-        transition: all 0.2s ease-in-out; cursor: pointer;
+    .item-indice-card {
+        margin-bottom: 12px;
+        background-color: #ffffff;
+        border: 1px solid #e1e8ed;
+        border-radius: 8px;
+        overflow: hidden;
+        transition: all 0.2s ease-in-out;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
     }
-    #listaDeHinos a:hover, #listaDeHinos a:focus { 
-        background-color: #e8f4f8; color: #2980b9; 
-        transform: translateY(-2px) scale(1.01); 
-        box-shadow: 0 4px 10px rgba(0,0,0,0.1); border-color: #bde0fe; 
+    .item-indice-card:hover {
+        border-color: #bde0fe;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+    }
+    .item-indice-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 18px;
+        gap: 12px;
+        background-color: #f9f9f9;
+        transition: background-color 0.2s ease;
+    }
+    .item-indice-header:hover {
+        background-color: #e8f4f8;
+    }
+    .item-indice-link {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: #34495e;
+        text-decoration: none;
+        font-size: 1.1em;
+        font-weight: 500;
+        cursor: pointer;
+        transition: color 0.2s;
+    }
+    .item-indice-link:hover {
+        color: #2980b9;
+    }
+    .item-indice-link .hino-numero-badge {
+        background-color: #e1effa;
+        color: #2980b9;
+        padding: 3px 9px;
+        border-radius: 6px;
+        font-size: 0.9em;
+        font-weight: 700;
+    }
+    .item-indice-link .hino-titulo-texto {
+        font-weight: 600;
+    }
+    .btn-consideracoes-indice {
+        background-color: #ffffff;
+    }
+    .box-consideracoes-indice {
+        border-top: 1px solid #e2e8f0;
+        background-color: #f8fafc;
     }
     .conteudo-hino { 
         position: relative; 
@@ -122,10 +158,16 @@
     }
     .botao-navegacao { background-color: #34495e; }
     .botao-navegacao:hover { background-color: #2c3e50; }
+    #btn-voltar-ia-topo, .btn-voltar-ia-fim {
+        background-color: #16a085;
+    }
+    #btn-voltar-ia-topo:hover, .btn-voltar-ia-fim:hover {
+        background-color: #117a65;
+    }
     .zoom-button { background-color: #34495e; }
     .zoom-button:hover { background-color: #2c3e50; }
 
-    .controles-finais-hino { display: flex; justify-content: center; gap: 15px; margin-top: 30px; padding-bottom: 20px;}
+    .controles-finais-hino { display: flex; justify-content: center; gap: 15px; margin-top: 30px; padding-bottom: 20px; flex-wrap: wrap; }
     .botao-voltar-hino {
         font-weight: bold; padding: 12px 20px; cursor: pointer; background-color: #34495e;
         color: white; border: none; border-radius: 8px; font-size: 1em; transition: background-color 0.2s;
@@ -164,6 +206,181 @@
         background-color: #ffffff; line-height: 1.6;
     }
     .loading { text-align: center; color: #555; font-style: italic; }
+
+    /* Estilos para os Cards de Hinos Sugeridos com Considerações */
+    .card-resultado-ia {
+        background-color: #ffffff;
+        border: 1px solid #e1e8ed;
+        border-radius: 10px;
+        margin-bottom: 14px;
+        overflow: hidden;
+        transition: all 0.2s ease-in-out;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+    }
+    .card-resultado-ia:hover {
+        border-color: #a3e4d7;
+        box-shadow: 0 4px 12px rgba(26, 188, 156, 0.12);
+    }
+    .card-resultado-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 18px;
+        gap: 12px;
+        flex-wrap: wrap;
+        background-color: #ffffff;
+    }
+    .item-hino-btn-titulo {
+        flex: 1;
+        min-width: 190px;
+        font-size: 1.1em;
+        font-weight: 600;
+        color: #2c3e50;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        transition: color 0.2s;
+    }
+    .item-hino-btn-titulo:hover {
+        color: #16a085;
+    }
+    .item-hino-btn-titulo .hino-numero-badge {
+        background-color: #e8f8f5;
+        color: #16a085;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 0.9em;
+        font-weight: 700;
+    }
+    .btn-consideracoes {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 14px;
+        font-size: 0.92em;
+        font-weight: 600;
+        color: #16a085;
+        background-color: #f0fdf9;
+        border: 1px solid #a3e4d7;
+        border-radius: 7px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+    }
+    .btn-consideracoes:hover {
+        background-color: #1abc9c;
+        color: #ffffff;
+        border-color: #1abc9c;
+        transform: translateY(-1px);
+        box-shadow: 0 3px 8px rgba(26, 188, 156, 0.2);
+    }
+    .btn-consideracoes.ativo {
+        background-color: #16a085;
+        color: #ffffff;
+        border-color: #148f77;
+    }
+    .btn-consideracoes .icon-spark {
+        font-size: 1.1em;
+    }
+    .box-consideracoes {
+        border-top: 1px solid #eef2f5;
+        background-color: #f8fafc;
+        padding: 20px 22px;
+        font-size: 1em;
+        line-height: 1.7;
+        color: #334155;
+        animation: fadeInBox 0.25s ease-out;
+    }
+    @keyframes fadeInBox {
+        from { opacity: 0; transform: translateY(-4px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .box-consideracoes-loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 20px;
+        color: #16a085;
+        font-weight: 500;
+    }
+    .box-consideracoes h4 {
+        color: #1e293b;
+        font-size: 1.15em;
+        margin-top: 16px;
+        margin-bottom: 8px;
+        font-weight: 700;
+        border-left: 3px solid #1abc9c;
+        padding-left: 8px;
+    }
+    .box-consideracoes h4:first-child {
+        margin-top: 0;
+    }
+    .box-consideracoes p {
+        margin-bottom: 12px;
+    }
+    .box-consideracoes ul, .box-consideracoes ol {
+        margin: 10px 0 14px 24px;
+        padding: 0;
+    }
+    .box-consideracoes li {
+        margin-bottom: 8px;
+    }
+    .citacao-hino {
+        background-color: #f1f7fa;
+        border-left: 4px solid #3498db;
+        margin: 14px 0;
+        padding: 12px 18px;
+        border-radius: 0 8px 8px 0;
+        font-style: italic;
+        color: #1e3a5f;
+        font-family: 'Georgia', serif;
+        font-size: 1.05em;
+        box-shadow: inset 0 1px 3px rgba(0,0,0,0.02);
+    }
+    .badge-tema-analisado {
+        display: inline-block;
+        background-color: #e0f2fe;
+        color: #0369a1;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 0.88em;
+        font-weight: 600;
+        margin-bottom: 14px;
+    }
+    .box-consideracoes-acoes {
+        display: flex;
+        gap: 10px;
+        margin-top: 18px;
+        padding-top: 14px;
+        border-top: 1px solid #e2e8f0;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+    }
+    .btn-acao-box {
+        padding: 8px 14px;
+        font-size: 0.9em;
+        font-weight: 600;
+        border-radius: 6px;
+        cursor: pointer;
+        border: none;
+        transition: all 0.2s;
+    }
+    .btn-acao-ler-hino {
+        background-color: #34495e;
+        color: #ffffff;
+    }
+    .btn-acao-ler-hino:hover {
+        background-color: #2c3e50;
+    }
+    .btn-acao-fechar-box {
+        background-color: #e2e8f0;
+        color: #475569;
+    }
+    .btn-acao-fechar-box:hover {
+        background-color: #cbd5e1;
+    }
 
     /* Estilos para a área de configuração da API */
     #config-api-area {
@@ -207,21 +424,6 @@
     <div id="secao-gemini" style="display: none;">
         <button class="botao-voltar-ia" onclick="mostrarIndice()">← Voltar ao Índice</button>
         <h2 style="margin-top: 20px;">Sugestão de Hinos por Assunto</h2>
-        
-        <!-- ÁREA DE CONFIGURAÇÃO DA CHAVE API -->
-        <div id="config-api-area">
-            <div id="area-input-key">
-                <label for="inputApiKey" style="display:block; margin-bottom:5px; font-weight:bold;">Configurar Chave API (Google Gemini):</label>
-                <input type="password" id="inputApiKey" placeholder="Cole sua API Key aqui (ex: AIzaSy...)">
-                <button id="btnSalvarKey">Salvar Chave</button>
-                <p style="font-size: 0.8em; color: #666;">A chave ficará salva no seu navegador.</p>
-            </div>
-            <div id="area-key-salva" style="display:none;">
-                <span class="status-key">✓ Chave de API configurada e salva!</span>
-                <button id="btnRemoverKey">Remover/Alterar Chave</button>
-            </div>
-        </div>
-        <!-- FIM DA ÁREA DE CONFIGURAÇÃO -->
 
         <input type="text" id="caixaDeTemaIA" placeholder="Ex: Salvação, Amor de Deus, Gratidão...">
         <button id="botaoBuscarIA">Buscar Hinos com IA</button>
@@ -232,6 +434,7 @@
 
     <div id="top-bar" style="display: none;">
         <div class="botoes-navegacao">
+            <button id="btn-voltar-ia-topo" class="botao-navegacao" style="display: none;">← Voltar à Busca com IA</button>
             <button id="btn-voltar-indice-topo" class="botao-navegacao">← Voltar ao Índice</button>
             <button id="btn-voltar-favoritos-topo" class="botao-navegacao">← Voltar aos Favoritos</button>
         </div>
@@ -254,11 +457,8 @@
 
   </div>
 
-  <!-- 2. SCRIPT PRINCIPAL DO TIPO MODULE -->
-  <script type="module">
-    // Importa a IA do Google
-    import { GoogleGenerativeAI } from "@google/generative-ai";
-
+  <!-- 2. SCRIPT PRINCIPAL -->
+  <script>
     document.addEventListener('DOMContentLoaded', () => {
         let tamanhoFonteAtual = 1.5;
 
@@ -966,57 +1166,18 @@
         const caixaDeBusca = document.getElementById('caixaDeBusca');
         const btnVoltarIndiceTopo = document.getElementById('btn-voltar-indice-topo');
         const btnVoltarFavoritosTopo = document.getElementById('btn-voltar-favoritos-topo');
+        const btnVoltarIaTopo = document.getElementById('btn-voltar-ia-topo');
         const botaoSugestaoIA = document.getElementById('botao-sugestao-ia');
         const botaoBuscarIA = document.getElementById('botaoBuscarIA');
         const caixaDeTemaIA = document.getElementById('caixaDeTemaIA');
         const resultadoIA = document.getElementById('resultadoIA');
         const loadingIA = document.getElementById('loading-ia');
 
-        // Elementos da configuração da API Key
-        const inputApiKey = document.getElementById('inputApiKey');
-        const btnSalvarKey = document.getElementById('btnSalvarKey');
-        const btnRemoverKey = document.getElementById('btnRemoverKey');
-        const areaInputKey = document.getElementById('area-input-key');
-        const areaKeySalva = document.getElementById('area-key-salva');
-
         let hinosFavoritos = JSON.parse(localStorage.getItem('hinarioFavoritos')) || [];
         let historicoHinos = JSON.parse(localStorage.getItem('hinarioHistorico')) || [];
-        
-        // --- LÓGICA DA API KEY ---
-        const verificarApiKeySalva = () => {
-            const key = localStorage.getItem('geminiApiKey');
-            if (key) {
-                areaInputKey.style.display = 'none';
-                areaKeySalva.style.display = 'block';
-                return key;
-            } else {
-                areaInputKey.style.display = 'block';
-                areaKeySalva.style.display = 'none';
-                return null;
-            }
-        };
-
-        const salvarApiKey = () => {
-            const key = inputApiKey.value.trim();
-            if (key) {
-                localStorage.setItem('geminiApiKey', key);
-                verificarApiKeySalva();
-                alert("Chave salva com sucesso!");
-                inputApiKey.value = ''; // Limpa o campo por segurança
-            } else {
-                alert("Por favor, insira uma chave válida.");
-            }
-        };
-
-        const removerApiKey = () => {
-            if(confirm("Tem certeza que deseja remover a chave salva?")) {
-                localStorage.removeItem('geminiApiKey');
-                verificarApiKeySalva();
-            }
-        };
-
-        // Inicializa verificação da chave
-        verificarApiKeySalva();
+        let scrollPosicaoIA = 0;
+        let ultimoHinoAbertoIA = null;
+        let temBuscaIAAtiva = false;
 
         const esconderTudo = () => Object.values(secoes).forEach(s => s.style.display = 'none');
 
@@ -1030,12 +1191,29 @@
             window.scrollTo(0, 0);
         };
 
-        window.mostrarHino = (numero) => {
+        window.mostrarHino = (numero, origem = null) => {
+            // Se foi aberto a partir dos resultados da IA
+            if (origem === 'ia' || secoes.gemini.style.display === 'block') {
+                scrollPosicaoIA = window.scrollY || window.pageYOffset || document.documentElement.scrollTop;
+                ultimoHinoAbertoIA = numero;
+                temBuscaIAAtiva = true;
+            }
+
             container.classList.add('container-full-width');
             adicionarAoHistorico(numero);
             esconderTudo();
             secoes.conteudo.style.display = 'block';
             secoes.topBar.style.display = 'flex';
+
+            // Exibe botão de voltar para a IA se houver busca ativa
+            if (temBuscaIAAtiva) {
+                if (btnVoltarIaTopo) btnVoltarIaTopo.style.display = 'inline-block';
+                document.querySelectorAll('.btn-voltar-ia-fim').forEach(b => b.style.display = 'inline-block');
+            } else {
+                if (btnVoltarIaTopo) btnVoltarIaTopo.style.display = 'none';
+                document.querySelectorAll('.btn-voltar-ia-fim').forEach(b => b.style.display = 'none');
+            }
+
             document.querySelectorAll('.conteudo-hino').forEach(h => h.style.display = 'none');
             const hinoSelecionado = document.getElementById(`hino-content-${numero}`);
             if (hinoSelecionado) {
@@ -1046,6 +1224,33 @@
             window.scrollTo(0, 0);
         };
 
+        window.voltarParaBuscaIA = () => {
+            container.classList.remove('container-full-width');
+            esconderTudo();
+            secoes.gemini.style.display = 'block';
+
+            // Retorna ao ponto exato do card de onde o usuário parou
+            if (ultimoHinoAbertoIA) {
+                const cardAlvo = document.getElementById(`card-ia-${ultimoHinoAbertoIA}`);
+                if (cardAlvo) {
+                    setTimeout(() => {
+                        cardAlvo.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        cardAlvo.style.outline = '2px solid #16a085';
+                        cardAlvo.style.boxShadow = '0 0 14px rgba(22, 160, 133, 0.35)';
+                        setTimeout(() => {
+                            cardAlvo.style.outline = '';
+                            cardAlvo.style.boxShadow = '';
+                        }, 1800);
+                    }, 50);
+                    return;
+                }
+            }
+
+            if (scrollPosicaoIA) {
+                window.scrollTo({ top: scrollPosicaoIA, behavior: 'smooth' });
+            }
+        };
+
         window.mostrarFavoritos = () => {
             container.classList.remove('container-full-width');
             esconderTudo();
@@ -1054,23 +1259,153 @@
             window.scrollTo(0, 0);
         };
 
-        const mostrarSecaoIA = () => {
+        window.mostrarSecaoIA = () => {
             container.classList.remove('container-full-width');
             esconderTudo();
             secoes.gemini.style.display = 'block';
-            verificarApiKeySalva(); // Verifica estado da chave ao abrir a seção
             caixaDeTemaIA.focus();
+        };
+
+        const cacheConsideracoes = {};
+
+        const carregarEExibirConsideracoes = async (numeroHino, tema, boxElement, btnElement, contexto = 'indice') => {
+            const isAberto = boxElement.style.display !== 'none';
+            if (isAberto) {
+                boxElement.style.display = 'none';
+                btnElement.classList.remove('ativo');
+                btnElement.innerHTML = '<span class="icon-spark">💡</span> Considerações';
+                return;
+            }
+
+            // Abre a caixa
+            boxElement.style.display = 'block';
+            btnElement.classList.add('ativo');
+            btnElement.innerHTML = '<span class="icon-spark">✕</span> Fechar';
+
+            const termoPesquisa = (tema || '').trim();
+            const cacheKey = `${numeroHino}_${termoPesquisa}`;
+
+            const renderConteudo = (conteudoHtml) => {
+                boxElement.innerHTML = conteudoHtml;
+                const btnLer = boxElement.querySelector('.btn-acao-ler-hino');
+                if (btnLer) {
+                    btnLer.onclick = () => mostrarHino(numeroHino, contexto);
+                }
+                const btnFechar = boxElement.querySelector('.btn-acao-fechar-box');
+                if (btnFechar) {
+                    btnFechar.onclick = () => {
+                        boxElement.style.display = 'none';
+                        btnElement.classList.remove('ativo');
+                        btnElement.innerHTML = '<span class="icon-spark">💡</span> Considerações';
+                    };
+                }
+            };
+
+            if (cacheConsideracoes[cacheKey]) {
+                renderConteudo(cacheConsideracoes[cacheKey]);
+                return;
+            }
+
+            const hinoObj = hinosData.find(h => h.numero === numeroHino);
+            const tituloHino = hinoObj ? hinoObj.titulo : `Hino ${numeroHino}`;
+            
+            boxElement.innerHTML = `
+                <div class="box-consideracoes-loading">
+                    <span>✨ Consultando a IA para gerar a análise teológica completa do Hino ${numeroHino} (${tituloHino})...</span>
+                </div>
+            `;
+
+            try {
+                const response = await fetch('/analisar-hino', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ numero: numeroHino, tema: termoPesquisa })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Falha ao obter análise do hino.');
+                }
+
+                const data = await response.json();
+                const analiseHtml = formatarMarkdownParaHtml(data.analise);
+
+                const badgeHtml = termoPesquisa 
+                    ? `<span class="badge-tema-analisado">🔎 Assunto pesquisado: "${termoPesquisa}"</span>` 
+                    : `<span class="badge-tema-analisado">🕊️ Considerações Teológicas e Doutrinárias</span>`;
+
+                const conteudoFinal = `
+                    ${badgeHtml}
+                    <div class="box-consideracoes-conteudo">
+                        ${analiseHtml}
+                    </div>
+                    <div class="box-consideracoes-acoes">
+                        <button class="btn-acao-box btn-acao-ler-hino">📖 Ler Letra Completa</button>
+                        <button class="btn-acao-box btn-acao-fechar-box">✕ Fechar Considerações</button>
+                    </div>
+                `;
+
+                cacheConsideracoes[cacheKey] = conteudoFinal;
+                renderConteudo(conteudoFinal);
+
+            } catch (error) {
+                console.error("Erro ao carregar considerações:", error);
+                boxElement.innerHTML = `
+                    <div style="color: #c0392b; padding: 12px;">
+                        <p>Não foi possível obter as considerações da IA no momento.</p>
+                        <div style="display: flex; gap: 10px; margin-top: 10px;">
+                            <button class="btn-acao-box btn-acao-ler-hino" onclick="mostrarHino(${numeroHino}, '${contexto}')">📖 Ler Letra do Hino</button>
+                            <button class="btn-acao-box btn-acao-recarregar" id="btn-recarregar-${numeroHino}">🔄 Tentar Novamente</button>
+                        </div>
+                    </div>
+                `;
+                const btnRecarregar = boxElement.querySelector(`#btn-recarregar-${numeroHino}`);
+                if (btnRecarregar) {
+                    btnRecarregar.onclick = () => carregarEExibirConsideracoes(numeroHino, termoPesquisa, boxElement, btnElement, contexto);
+                }
+            }
+        };
+
+        const toggleConsideracoesIndice = (numeroHino) => {
+            const box = document.getElementById(`box-consideracoes-indice-${numeroHino}`);
+            const btn = document.getElementById(`btn-consideracoes-indice-${numeroHino}`);
+            if (!box || !btn) return;
+            const termoPesquisa = (caixaDeBusca.value || '').trim();
+            carregarEExibirConsideracoes(numeroHino, termoPesquisa, box, btn, 'indice');
         };
 
         const renderizarListaDeHinos = () => { 
             listaDeHinos.innerHTML = ''; 
             hinosData.sort((a, b) => a.numero - b.numero).forEach(hino => { 
-                const a = document.createElement('a'); 
-                a.href = "#"; 
-                a.textContent = `${hino.numero} - ${hino.titulo}`; 
-                a.onclick = (e) => { e.preventDefault(); mostrarHino(hino.numero); }; 
-                const li = document.createElement('li'); 
-                li.appendChild(a); 
+                const li = document.createElement('li');
+                li.className = 'item-indice-card';
+                li.id = `item-indice-${hino.numero}`;
+                li.setAttribute('data-numero', hino.numero);
+
+                li.innerHTML = `
+                    <div class="item-indice-header">
+                        <div class="item-indice-link" id="link-indice-hino-${hino.numero}" title="Clique para abrir a letra do Hino ${hino.numero}">
+                            <span class="hino-numero-badge">#${hino.numero}</span>
+                            <span class="hino-titulo-texto">${hino.titulo}</span>
+                        </div>
+                        <button class="btn-consideracoes btn-consideracoes-indice" id="btn-consideracoes-indice-${hino.numero}" title="Consultar considerações da IA para este hino">
+                            <span class="icon-spark">💡</span> Considerações
+                        </button>
+                    </div>
+                    <div class="box-consideracoes box-consideracoes-indice" id="box-consideracoes-indice-${hino.numero}" style="display: none;"></div>
+                `;
+
+                const btnTitulo = li.querySelector('.item-indice-link');
+                btnTitulo.onclick = (e) => {
+                    e.preventDefault();
+                    mostrarHino(hino.numero, 'indice');
+                };
+
+                const btnConsideracoes = li.querySelector('.btn-consideracoes');
+                btnConsideracoes.onclick = (e) => {
+                    e.stopPropagation();
+                    toggleConsideracoesIndice(hino.numero);
+                };
+
                 listaDeHinos.appendChild(li); 
             }); 
         };
@@ -1087,6 +1422,7 @@
                     <div class="autor-hino">${hino.autor}</div> 
                     <pre>${hino.conteudo}</pre> 
                     <div class="controles-finais-hino"> 
+                        <button class="botao-voltar-hino btn-voltar-ia-fim" style="display: none;" onclick="voltarParaBuscaIA()">← Voltar à Busca com IA</button>
                         <button class="botao-voltar-hino" onclick="mostrarIndice()">← Voltar ao Índice</button> 
                         <button class="botao-voltar-hino" onclick="mostrarFavoritos()">← Voltar aos Favoritos</button> 
                     </div> 
@@ -1114,15 +1450,18 @@
         };
 
         const filtrarHinos = () => { 
-            const t = caixaDeBusca.value.toLowerCase(), n = /^\d+$/.test(t); 
+            const t = caixaDeBusca.value.toLowerCase().trim(), n = /^\d+$/.test(t); 
             Array.from(listaDeHinos.children).forEach(i => { 
-                const o = parseInt(i.textContent.split(" - ")[0]), e = hinosData.find(i => i.numero === o); 
+                const numAttr = i.getAttribute('data-numero');
+                const o = parseInt(numAttr || i.textContent.split(" - ")[0], 10);
+                const e = hinosData.find(item => item.numero === o); 
                 if (e) { 
                     const s = e.titulo.toLowerCase(), a = e.conteudo.toLowerCase(), c = e.numero.toString(); 
                     let d = !1; 
-                    (n ? c.includes(t) || s.includes(t) : c.includes(t) || s.includes(t) || a.includes(t)) && (d = !0), i.style.display = d ? "" : "none" 
+                    (n ? c.includes(t) || s.includes(t) : c.includes(t) || s.includes(t) || a.includes(t)) && (d = !0);
+                    i.style.display = d ? "" : "none"; 
                 } 
-            }) 
+            }); 
         };
 
         const adicionarAoHistorico = (e) => { const o = historicoHinos.indexOf(e); o > -1 && historicoHinos.splice(o, 1), historicoHinos.unshift(e), localStorage.setItem("hinarioHistorico", JSON.stringify(historicoHinos)) };
@@ -1154,19 +1493,11 @@
         const atualizarBotaoFavorito = (e) => { const o = document.getElementById(`botao-favorito-${e}`); hinosFavoritos.includes(e) ? (o.classList.add("ativo"), o.textContent = "\u2605") : (o.classList.remove("ativo"), o.textContent = "\u2606") };
         const aplicarZoom = () => { const e = document.querySelector('.conteudo-hino[style*="display: block"]'); e && (e.querySelector("pre").style.fontSize = `${tamanhoFonteAtual}em`) };
 
-        // --- FUNÇÃO DE BUSCA COM IA (CLIENT-SIDE) ---
+        // --- FUNÇÃO DE BUSCA COM IA (BACKEND) ---
         const buscarHinosComIA = async () => {
             const tema = caixaDeTemaIA.value.trim();
             if (!tema) {
-                resultadoIA.innerHTML = '<p>Por favor, digite um tema para a busca.</p>';
-                return;
-            }
-
-            // Recupera a chave do localStorage
-            const userApiKey = localStorage.getItem('geminiApiKey');
-
-            if (!userApiKey) {
-                resultadoIA.innerHTML = '<p style="color:red;">Erro: Chave da API não configurada. Por favor, insira sua chave do Google Gemini acima e clique em Salvar.</p>';
+                resultadoIA.innerHTML = '<p style="text-align: center; color: #7f8c8d; padding: 20px;">Por favor, digite um tema ou frase para a busca.</p>';
                 return;
             }
 
@@ -1176,70 +1507,137 @@
             botaoBuscarIA.disabled = true;
 
             try {
-                // Inicializa a IA com a chave do usuário
-                const genAI = new GoogleGenerativeAI(userApiKey);
-                const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
-
-                // Prepara os dados para a IA (converte a lista de hinos em texto)
-                const hinosTexto = hinosData.map(h => `Hino ${h.numero} - ${h.titulo}\nLetra: ${h.conteudo}`).join('\n---\n');
-
-                // PROMPT ATUALIZADO PARA FOCAR NA LETRA
-                const prompt = `
-                    Você é um assistente especialista em teologia e hinologia.
-                    Sua tarefa é analisar profundamente a LETRA (conteúdo) de cada hino na lista abaixo para encontrar correspondências com o tema.
-                    NÃO se baseie apenas nos títulos. Busque o significado teológico nos versos.
-                    
-                    O tema de busca é: "${tema}".
-
-                    Regras:
-                    1. Liste no máximo 10 hinos que tenham forte relação teológica ou lírica com o tema.
-                    2. O formato de cada linha deve ser EXATAMENTE: "Hino [número] - [título]".
-                    3. Não inclua introdução, conclusão ou explicações. Apenas a lista.
-
-                    Base de hinos (Título e Letra):
-                    ---
-                    ${hinosTexto}
-                `;
-
-                const result = await model.generateContent(prompt);
-                const response = await result.response;
-                const text = response.text();
+                const response = await fetch('/sugerir-hinos', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tema })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Erro na resposta do servidor.');
+                }
+                
+                const data = await response.json();
 
                 loadingIA.style.display = 'none';
                 botaoBuscarIA.disabled = false;
                 resultadoIA.innerHTML = '';
 
-                // Processa a resposta da IA para criar links clicáveis
-                const linhas = text.split('\n');
-                let encontrouAlgum = false;
+                // Obter lista de hinos pré-processados com considerações já inclusas
+                let hinosParaExibir = [];
 
-                linhas.forEach(linha => {
-                    const match = linha.match(/Hino\s+(\d+)/i);
-                    if (match) {
-                        const numeroHino = parseInt(match[1]);
-                        const hino = hinosData.find(h => h.numero === numeroHino);
-                        
-                        if (hino) {
-                            encontrouAlgum = true;
-                            const item = document.createElement('div');
-                            item.className = 'item-historico';
-                            item.textContent = `${hino.numero} - ${hino.titulo}`;
-                            item.onclick = () => mostrarHino(hino.numero);
-                            resultadoIA.appendChild(item);
+                if (Array.isArray(data.hinos) && data.hinos.length > 0) {
+                    hinosParaExibir = data.hinos;
+                } else if (typeof data.sugestoes === 'string') {
+                    // Fallback para caso venha texto legado
+                    const linhas = data.sugestoes.split('\n');
+                    linhas.forEach(linha => {
+                        const match = linha.match(/Hino\s+(\d+)/i);
+                        if (match) {
+                            const num = parseInt(match[1], 10);
+                            const h = hinosData.find(item => item.numero === num);
+                            if (h) {
+                                hinosParaExibir.push({
+                                    numero: h.numero,
+                                    titulo: h.titulo,
+                                    autor: h.autor,
+                                    enquadramento: `Este hino aborda o tema "${tema}" em sua mensagem espiritual.`,
+                                    citacoes: [],
+                                    consideracoes: `Reflexão teológica baseada na letra do Hino ${h.numero}.`
+                                });
+                            }
                         }
-                    }
-                });
-
-                if (!encontrouAlgum) {
-                    resultadoIA.innerHTML = `<p>A IA respondeu: <br> ${text.replace(/\n/g, '<br>')}</p>`;
+                    });
                 }
+
+                if (hinosParaExibir.length === 0) {
+                    resultadoIA.innerHTML = '<p style="text-align: center; padding: 20px;">Nenhum hino correspondente foi encontrado para esta busca.</p>';
+                    return;
+                }
+
+                // Renderiza cada card de sugestão da IA
+                hinosParaExibir.forEach(hinoItem => {
+                    const hinoReal = hinosData.find(h => h.numero === hinoItem.numero) || hinoItem;
+                    const card = document.createElement('div');
+                    card.className = 'card-resultado-ia';
+                    card.id = `card-ia-${hinoItem.numero}`;
+
+                    card.innerHTML = `
+                        <div class="card-resultado-header">
+                            <div class="item-hino-btn-titulo" id="hino-link-${hinoItem.numero}" title="Clique para abrir a letra do Hino ${hinoItem.numero}">
+                                <span class="hino-numero-badge">#${hinoItem.numero}</span>
+                                <span class="hino-titulo-texto">${hinoReal.titulo || hinoItem.titulo}</span>
+                            </div>
+                            <button class="btn-consideracoes" id="btn-consideracoes-ia-${hinoItem.numero}" title="Ver considerações teológicas completas da IA para este hino">
+                                <span class="icon-spark">💡</span> Considerações
+                            </button>
+                        </div>
+                        <div class="box-consideracoes" id="box-consideracoes-ia-${hinoItem.numero}" style="display: none;"></div>
+                    `;
+
+                    // Clique no título do hino abre a letra imediatamente
+                    const btnTitulo = card.querySelector('.item-hino-btn-titulo');
+                    btnTitulo.onclick = () => mostrarHino(hinoItem.numero, 'ia');
+
+                    // Clique no botão de considerações executa a análise teológica completa
+                    const btnConsideracoes = card.querySelector('.btn-consideracoes');
+                    const box = card.querySelector('.box-consideracoes');
+
+                    btnConsideracoes.onclick = (e) => {
+                        e.stopPropagation();
+                        carregarEExibirConsideracoes(hinoItem.numero, tema, box, btnConsideracoes, 'ia');
+                    };
+
+                    resultadoIA.appendChild(card);
+                });
 
             } catch (error) {
                 console.error(error);
                 loadingIA.style.display = 'none';
                 botaoBuscarIA.disabled = false;
-                resultadoIA.innerHTML = '<p style="color:red;">Erro ao conectar com a IA. Verifique se sua Chave API está correta e se você tem conexão com a internet.</p>';
+                resultadoIA.innerHTML = '<p style="color:red; text-align: center; padding: 20px;">Erro ao conectar com a IA. Verifique sua conexão e tente novamente.</p>';
             }
+        };
+
+        // Formatador de markdown enriquecido para a caixa de considerações
+        const formatarMarkdownParaHtml = (markdownText) => {
+            if (!markdownText) return '';
+            let html = markdownText
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;");
+
+            // Format blockquotes with >
+            html = html.replace(/^&gt;\s?(.*$)/gim, '<blockquote class="citacao-hino">$1</blockquote>');
+            
+            // Format titles
+            html = html.replace(/^### (.*$)/gim, '<h4>$1</h4>');
+            html = html.replace(/^## (.*$)/gim, '<h4>$1</h4>');
+            html = html.replace(/^# (.*$)/gim, '<h4>$1</h4>');
+
+            // Format bold and italic
+            html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+            // Format block elements
+            const blocks = html.split(/\n\n+/);
+            return blocks.map(block => {
+                const b = block.trim();
+                if (!b) return '';
+                if (b.startsWith('<h4>') || b.startsWith('<blockquote') || b.startsWith('<ul>') || b.startsWith('<ol>')) {
+                    return b;
+                }
+                // Handle bullet points
+                if (b.includes('\n* ') || b.includes('\n- ') || b.startsWith('* ') || b.startsWith('- ')) {
+                    const lines = b.split('\n');
+                    const listItems = lines.map(l => {
+                        const itemText = l.replace(/^[-*]\s+/, '').trim();
+                        return itemText ? `<li>${itemText}</li>` : '';
+                    }).filter(Boolean).join('');
+                    return `<ul>${listItems}</ul>`;
+                }
+                return `<p>${b.replace(/\n/g, '<br>')}</p>`;
+            }).join('');
         };
 
         // --- EVENT LISTENERS ---
@@ -1248,16 +1646,13 @@
         document.getElementById('botao-ver-favoritos').addEventListener('click', mostrarFavoritos);
         btnVoltarIndiceTopo.addEventListener('click', mostrarIndice);
         btnVoltarFavoritosTopo.addEventListener('click', mostrarFavoritos);
+        if (btnVoltarIaTopo) btnVoltarIaTopo.addEventListener('click', voltarParaBuscaIA);
         botaoSugestaoIA.addEventListener('click', mostrarSecaoIA);
         botaoBuscarIA.addEventListener('click', buscarHinosComIA);
         caixaDeTemaIA.addEventListener('keyup', (e) => { if (e.key === 'Enter') buscarHinosComIA(); });
         document.getElementById('botao-zoom-in').addEventListener('click', () => { tamanhoFonteAtual += 0.1; aplicarZoom(); });
         document.getElementById('botao-zoom-out').addEventListener('click', () => { if (tamanhoFonteAtual > 0.6) { tamanhoFonteAtual -= 0.1; aplicarZoom(); } });
         
-        // Listeners para configuração da API
-        btnSalvarKey.addEventListener('click', salvarApiKey);
-        btnRemoverKey.addEventListener('click', removerApiKey);
-
         // --- INICIALIZAÇÃO ---
         renderizarListaDeHinos();
         renderizarConteudosDosHinos();

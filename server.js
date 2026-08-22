@@ -1,5 +1,5 @@
 const express = require('express');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { GoogleGenAI } = require('@google/genai');
 require('dotenv').config();
 
 // LISTA COMPLETA DE HINOS (Base de dados)
@@ -696,60 +696,289 @@ const hinosData = [
 
 const app = express();
 const port = 3000;
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+let genAIClient = null;
+function getGenAI() {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return null;
+  if (!genAIClient) {
+    genAIClient = new GoogleGenAI({
+      apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        }
+      }
+    });
+  }
+  return genAIClient;
+}
 
 app.use(express.json());
 app.use(express.static('.'));
 
-// --- ROTA NOVA: Envia a lista de hinos para o Frontend ---
+// --- ROTA: Envia a lista de hinos para o Frontend ---
 app.get('/api/hinos', (req, res) => {
     res.json(hinosData);
 });
 
-// --- ROTA IA: Sugere hinos baseados no tema ---
+// Helper de pontuação e ranking de hinos relevantes
+function rankHinos(query) {
+  const clean = (query || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\w\s]/g, " ").trim();
+  const words = clean.split(/\s+/).filter(w => w.length >= 3);
+  const roots = words.map(w => w.length > 5 ? w.slice(0, 5) : w);
+  
+  const scored = hinosData.map(h => {
+    const titleClean = h.titulo.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\w\s]/g, " ");
+    const contentClean = h.conteudo.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\w\s]/g, " ");
+    let score = 0;
+    
+    // Frase exata no título ou conteúdo
+    if (clean && titleClean.includes(clean)) score += 50;
+    if (clean && contentClean.includes(clean)) score += 30;
+
+    for (const w of words) {
+      if (titleClean.includes(w)) score += 15;
+      if (contentClean.includes(w)) {
+        const parts = contentClean.split(w);
+        score += (parts.length - 1) * 3;
+      }
+    }
+
+    for (const r of roots) {
+      if (titleClean.includes(r)) score += 8;
+      if (contentClean.includes(r)) {
+        const parts = contentClean.split(r);
+        score += (parts.length - 1) * 1.5;
+      }
+    }
+
+    return { hino: h, score };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored;
+}
+
+// Helper para executar geração com timeout seguro
+async function gerarComTimeout(ai, model, config, timeoutMs = 12000) {
+  return Promise.race([
+    ai.models.generateContent({
+      model,
+      contents: config.contents,
+      config: config.config
+    }),
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`Timeout na consulta do modelo ${model}`)), timeoutMs))
+  ]);
+}
+
+// --- ROTA IA: Sugere hinos baseados no tema e pré-gera considerações teológicas completas ---
 app.post('/sugerir-hinos', async (req, res) => {
   try {
     const { tema } = req.body;
-    if (!tema) {
+    if (!tema || !tema.trim()) {
       return res.status(400).json({ error: 'O tema é obrigatório.' });
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
+    const trimmedTema = tema.trim();
+    const ranked = rankHinos(trimmedTema);
+    const topCandidates = ranked.slice(0, 14).map(s => s.hino);
 
-    // Formatar os dados para a IA ler melhor
-    const hinosFormatados = hinosData.map(hino => {
-        return `Hino ${hino.numero} - ${hino.titulo}\nLetra:\n${hino.conteudo}`;
-    }).join('\n\n---\n\n');
+    const candidatesText = topCandidates.map(h => 
+      `--- HINO ${h.numero} - ${h.titulo} (Autor: ${h.autor}) ---\nLETRA:\n${h.conteudo}`
+    ).join('\n\n');
 
-    const prompt = `
-      Você é um assistente especialista em teologia e hinologia.
-      Sua tarefa é analisar o tema fornecido e selecionar os hinos mais apropriados.
-      
-      O tema é: "${tema}".
+    const prompt = `Você é um hinólogo e teólogo cristão especialista.
+O usuário pesquisou pela seguinte frase/tema: "${trimmedTema}".
 
-      Regras:
-      1. Liste no máximo 10 hinos.
-      2. O formato de cada linha deve ser EXATAMENTE: "Hino [número] - [título]".
-      3. Não inclua introdução ou conclusão. Apenas a lista.
+Analise os hinos candidatos fornecidos abaixo e selecione os 5 a 7 hinos mais pertinentes ao tema.
+Para CADA hino selecionado, analise a letra completa do hino e forneça:
+1. "enquadramento": Explicação teológica de por que e como o hino se enquadra na busca ("${trimmedTema}").
+2. "citacoes": Array com 2 a 3 frases ou versos extraídos da letra do hino entre aspas ("...").
+3. "consideracoes": Considerações teológicas e ensinamentos espirituais abordados pelo hino, incluindo passagens bíblicas que afirmam tais verdades.
 
-      Base de hinos:
-      ---
-      ${hinosFormatados}
-    `;
+Responda ESTRITAMENTE em formato JSON (um array de objetos válido), no seguinte esquema:
+[
+  {
+    "numero": 241,
+    "titulo": "Não Sou Meu",
+    "autor": "Henry Maxwell Wright",
+    "enquadramento": "Explicação teológica...",
+    "citacoes": [
+      "\"trecho 1 do hino\"",
+      "\"trecho 2 do hino\""
+    ],
+    "consideracoes": "Considerações teológicas com passagens bíblicas..."
+  }
+]
 
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    const text = response.text();
-    
-    res.json({ sugestoes: text });
+Hinos Candidatos com Letra Completa:
+${candidatesText}`;
+
+    const ai = getGenAI();
+    let listaHinosComConsideracoes = null;
+
+    if (ai) {
+      const modelsToTry = ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'];
+      for (const model of modelsToTry) {
+        try {
+          const result = await gerarComTimeout(ai, model, {
+            contents: prompt,
+            config: {
+              responseMimeType: "application/json"
+            }
+          }, 12000);
+
+          if (result && result.text && result.text.trim()) {
+            const parsed = JSON.parse(result.text.trim());
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              listaHinosComConsideracoes = parsed;
+              break;
+            }
+          }
+        } catch (err) {
+          console.warn(`Tentativa com modelo ${model} falhou:`, err.message || err);
+        }
+      }
+    }
+
+    // Fallback inteligente caso a IA não retorne JSON
+    if (!listaHinosComConsideracoes || listaHinosComConsideracoes.length === 0) {
+      const selected = ranked.slice(0, 6).map(s => s.hino);
+      listaHinosComConsideracoes = selected.map(h => {
+        const estrofes = (h.conteudo || "").split('\n\n').filter(Boolean);
+        const citacoesLocais = estrofes.slice(0, 2).map(e => `"${e.replace(/\n/g, ' ')}"`);
+        
+        return {
+          numero: h.numero,
+          titulo: h.titulo,
+          autor: h.autor,
+          enquadramento: `Este hino aborda o tema "${trimmedTema}" ao expressar a fé cristã, a soberania divina e a esperança eterna no Senhor.`,
+          citacoes: citacoesLocais.length > 0 ? citacoesLocais : [`"${h.titulo}"`],
+          consideracoes: `A mensagem teológica do Hino ${h.numero} convida à reflexão e edificação espiritual, amparada pelas Escrituras Sagradas.`
+        };
+      });
+    }
+
+    // Garante que cada item tenha os dados do hino oficial
+    const hinosEnriquecidos = listaHinosComConsideracoes.map(item => {
+      const hinoReal = hinosData.find(h => h.numero === item.numero) || {};
+      return {
+        numero: item.numero,
+        titulo: item.titulo || hinoReal.titulo || `Hino ${item.numero}`,
+        autor: item.autor || hinoReal.autor || '',
+        enquadramento: item.enquadramento || '',
+        citacoes: Array.isArray(item.citacoes) ? item.citacoes : (item.citacoes ? [item.citacoes] : []),
+        consideracoes: item.consideracoes || ''
+      };
+    });
+
+    // Formato de texto legado caso algum script espere string simples
+    const sugestoesTextoLegado = hinosEnriquecidos.map(h => `Hino ${h.numero} - ${h.titulo}`).join('\n');
+
+    return res.json({
+      hinos: hinosEnriquecidos,
+      sugestoes: sugestoesTextoLegado
+    });
 
   } catch (error) {
-    console.error("Erro ao chamar a API do Gemini:", error);
+    console.error("Erro no processamento de sugestão:", error);
     res.status(500).json({ error: 'Ocorreu um erro ao processar sua solicitação.' });
   }
 });
 
-app.listen(port, () => {
+// --- ROTA IA: Análise detalhada e considerações teológicas do hino ---
+app.post('/analisar-hino', async (req, res) => {
+  try {
+    const { numero, tema } = req.body;
+    if (!numero) {
+      return res.status(400).json({ error: 'Número do hino é obrigatório.' });
+    }
+
+    const num = parseInt(numero, 10);
+    const hino = hinosData.find(h => h.numero === num);
+    if (!hino) {
+      return res.status(404).json({ error: 'Hino não encontrado.' });
+    }
+
+    const trimmedTema = tema ? tema.trim() : '';
+    let prompt = '';
+    
+    if (trimmedTema) {
+      prompt = `Você é um hinólogo e teólogo cristão especialista.
+O usuário está consultando o Hino ${hino.numero} - "${hino.titulo}" (Autor: ${hino.autor}) com foco no tema/termo: "${trimmedTema}".
+
+Letra completa do hino:
+"""
+${hino.conteudo}
+"""
+
+Instruções para a resposta:
+1. Explique com profundidade teológica como a mensagem central deste hino se conecta e se enquadra na busca ("${trimmedTema}").
+2. Cite explicitamente frases ou versos entre aspas ("...") da letra do hino que comprovam essa ligação doutrinária e espiritual.
+3. Apresente considerações espirituais e teológicas edificantes sobre o ensinamento do hino para a fé cristã incluindo passagens bíblicas que afirmam tais verdades.
+4. Estruture com títulos em markdown (### ou ####), parágrafos bem organizados e versos destacados em aspas.`;
+    } else {
+      prompt = `Você é um hinólogo e teólogo cristão especialista.
+Faça uma análise teológica, doutrinária e espiritual completa do Hino ${hino.numero} - "${hino.titulo}" (Autor: ${hino.autor}).
+
+Letra completa do hino:
+"""
+${hino.conteudo}
+"""
+
+Instruções para a resposta:
+1. Apresente o enquadramento teológico e a mensagem central do hino (contexto bíblico e doutrinário).
+2. Cite explicitamente frases e versos-chave entre aspas ("...") extraídos diretamente da letra do hino.
+3. Apresente considerações espirituais e teológicas edificantes sobre o ensino do hino para a vida de fé incluindo passagens bíblicas que afirmam tais verdades.
+4. Estruture com títulos em markdown (### ou ####), parágrafos bem organizados e versos destacados em aspas.`;
+    }
+
+    const ai = getGenAI();
+    let analiseTexto = '';
+
+    if (ai) {
+      const modelsToTry = ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'];
+      for (const model of modelsToTry) {
+        try {
+          const result = await gerarComTimeout(ai, model, {
+            contents: prompt
+          }, 12000);
+          if (result && result.text && result.text.trim()) {
+            analiseTexto = result.text.trim();
+            break;
+          }
+        } catch (err) {
+          console.warn(`Análise com ${model} falhou:`, err.message || err);
+        }
+      }
+    }
+
+    if (!analiseTexto) {
+      const primeiroVerso = (hino.conteudo || "").split('\n\n')[0].replace(/\n/g, ' ');
+      const focoTexto = trimmedTema ? `com foco em **"${trimmedTema}"**` : 'e sua mensagem cristã';
+      analiseTexto = `### Considerações sobre o Hino ${hino.numero} - ${hino.titulo}\n\n` +
+        `Este hino expressa a fé ${focoTexto}, ressaltando a graça divina, a dependência e a esperança no Senhor Jesus Cristo.\n\n` +
+        `**Trecho citado da letra:**\n> "${primeiroVerso}"\n\n` +
+        `**Reflexão Bíblica:** A mensagem do hino convida a meditar na soberania, paz e fidelidade de Deus (cf. Salmos 23; Filipenses 4:6-7).`;
+    }
+
+    return res.json({
+      analise: analiseTexto,
+      hino: {
+        numero: hino.numero,
+        titulo: hino.titulo,
+        autor: hino.autor
+      }
+    });
+
+  } catch (error) {
+    console.error("Erro ao analisar hino:", error);
+    res.status(500).json({ error: 'Erro ao gerar análise do hino.' });
+  }
+});
+
+app.listen(port, "0.0.0.0", () => {
   console.log(`Servidor rodando em http://localhost:${port}`);
 });
 
