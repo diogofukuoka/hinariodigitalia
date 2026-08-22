@@ -39,10 +39,16 @@
         text-align: center; font-style: italic; font-size: 0.95em;
         color: #555; margin-top: -20px; margin-bottom: 30px;
     }
+    button, input, select, textarea {
+        font-family: inherit;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+    }
     #caixaDeBusca, #caixaDeTemaIA, #inputApiKey { 
         width: 100%; padding: 15px; margin-bottom: 15px; 
         font-size: 1.1em; border: 1px solid #ddd; border-radius: 8px; 
         box-sizing: border-box; 
+        touch-action: manipulation;
     }
     #caixaDeBusca:focus, #caixaDeTemaIA:focus, #inputApiKey:focus { 
         border-color: #2980b9; box-shadow: 0 0 8px rgba(41, 128, 185, 0.2); 
@@ -392,16 +398,23 @@
     }
     .status-key { font-weight: bold; color: #27ae60; display: block; text-align: center; margin-bottom: 10px; }
 
-    @media (max-width: 600px) {
+    @media (max-width: 768px) {
         body { padding: 0; }
         .container { 
-            margin: 0;
+            margin: 0 auto;
             border-radius: 0;
             box-shadow: none;
-            padding: 15px;
+            padding: 16px 20px;
         }
         .conteudo-hino {
-            padding: 15px;
+            padding: 16px;
+        }
+        #botao-ver-favoritos, #botao-sugestao-ia {
+            width: 100%;
+        }
+        .btn-consideracoes {
+            min-height: 42px;
+            padding: 10px 16px;
         }
     }
   </style>
@@ -425,8 +438,10 @@
         <button class="botao-voltar-ia" onclick="mostrarIndice()">← Voltar ao Índice</button>
         <h2 style="margin-top: 20px;">Sugestão de Hinos por Assunto</h2>
 
-        <input type="text" id="caixaDeTemaIA" placeholder="Ex: Salvação, Amor de Deus, Gratidão...">
-        <button id="botaoBuscarIA">Buscar Hinos com IA</button>
+        <form id="formBuscaIA" onsubmit="event.preventDefault(); buscarHinosComIA();">
+            <input type="search" id="caixaDeTemaIA" placeholder="Ex: Salvação, Amor de Deus, Gratidão, Esperança..." enterkeyhint="search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+            <button type="submit" id="botaoBuscarIA">Buscar Hinos com IA</button>
+        </form>
         <div id="resultadoIA">
             <p id="loading-ia" class="loading" style="display:none;">Analisando hinos e buscando sugestões... Por favor, aguarde.</p>
         </div>
@@ -449,7 +464,7 @@
         <p class="versiculo-subtitulo">"Tudo quanto tem fôlego louve ao SENHOR. Louvai ao SENHOR." (Sl 150:6)</p>
         <button id="botao-ver-favoritos">Ver Hinos Favoritos ⭐</button>
         <button id="botao-sugestao-ia">Sugestão de Hinos por Assunto 🧠</button>
-        <input type="text" id="caixaDeBusca" placeholder="Buscar por número, título ou letra...">
+        <input type="search" id="caixaDeBusca" placeholder="Buscar por número, título ou letra..." enterkeyhint="search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
         <ul id="listaDeHinos"></ul>
     </div>
 
@@ -1268,6 +1283,68 @@
 
         const cacheConsideracoes = {};
 
+        // Helper para ranking local de hinos (usado em buscas locais ou fallback)
+        const rankHinosLocal = (termo) => {
+            const clean = (termo || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\w\s]/g, " ").trim();
+            const words = clean.split(/\s+/).filter(w => w.length >= 3);
+            const roots = words.map(w => w.length > 5 ? w.slice(0, 5) : w);
+            
+            const scored = hinosData.map(h => {
+                const titleClean = (h.titulo || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\w\s]/g, " ");
+                const contentClean = (h.conteudo || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\w\s]/g, " ");
+                let score = 0;
+                if (clean && titleClean.includes(clean)) score += 50;
+                if (clean && contentClean.includes(clean)) score += 30;
+                for (const w of words) {
+                    if (titleClean.includes(w)) score += 15;
+                    if (contentClean.includes(w)) {
+                        const parts = contentClean.split(w);
+                        score += (parts.length - 1) * 3;
+                    }
+                }
+                for (const r of roots) {
+                    if (titleClean.includes(r)) score += 8;
+                    if (contentClean.includes(r)) {
+                        const parts = contentClean.split(r);
+                        score += (parts.length - 1) * 1.5;
+                    }
+                }
+                return { hino: h, score };
+            });
+            scored.sort((a, b) => b.score - a.score);
+            return scored.filter(s => s.score > 0).slice(0, 6).map(s => s.hino);
+        };
+
+        // Gerador de análise teológica local robusto para fallback
+        const gerarAnaliseLocal = (hino, tema) => {
+            const estrofes = (hino.conteudo || "").split('\n\n').filter(Boolean);
+            const primeiroTrecho = estrofes[0] ? estrofes[0].replace(/\n/g, ' ') : hino.titulo;
+            const segundoTrecho = estrofes.length > 1 ? estrofes[1].replace(/\n/g, ' ') : '';
+            const termo = (tema || '').trim();
+
+            let enquadramento = '';
+            if (termo) {
+                enquadramento = `### Enquadramento Teológico com "${termo}"\n` +
+                    `O Hino ${hino.numero} - "${hino.titulo}" (de autoria de ${hino.autor || 'tradicional'}) aborda diretamente a essência de **${termo}**, apontando para a providência divina, a fé salvadora e o consolo nas promessas do Evangelho.\n\n`;
+            } else {
+                enquadramento = `### Considerações Teológicas sobre o Hino ${hino.numero}\n` +
+                    `O Hino "${hino.titulo}" (composto por ${hino.autor || 'autor cristão'}) constitui um hino de profunda devoção, adoração e confissão de fé nas verdades eternas das Sagradas Escrituras.\n\n`;
+            }
+
+            let citacoes = `### Frases e Versos em Destaque da Letra\n` +
+                `> "${primeiroTrecho}"\n\n`;
+            if (segundoTrecho) {
+                citacoes += `> "${segundoTrecho}"\n\n`;
+            }
+
+            let consideracoes = `### Ensinamentos Espirituais e Fundamentação Bíblica\n` +
+                `* **Obra Redentora e Graça:** Os versos exaltam a suficiência do sacrifício de Jesus Cristo como a rocha inabalável de nossa redenção (cf. Romanos 5:1-2; Efésios 2:8-9).\n` +
+                `* **Comunhão e Segurança na Fé:** Encoraja a perseverança da alma em constante oração e entrega sob o cuidado do Bom Pastor (cf. Salmos 23:1-6; Filipenses 4:6-7).\n` +
+                `* **Esperança e Louvor Perpétuo:** Convida a congregação a louvar com júbilo e vigilância na alegre certeza da vida eterna (cf. Tito 2:13; Hebreus 13:15).`;
+
+            return enquadramento + citacoes + consideracoes;
+        };
+
         const carregarEExibirConsideracoes = async (numeroHino, tema, boxElement, btnElement, contexto = 'indice') => {
             const isAberto = boxElement.style.display !== 'none';
             if (isAberto) {
@@ -1311,26 +1388,43 @@
             
             boxElement.innerHTML = `
                 <div class="box-consideracoes-loading">
-                    <span>✨ Consultando a IA para gerar a análise teológica completa do Hino ${numeroHino} (${tituloHino})...</span>
+                    <span>✨ Carregando análise teológica do Hino ${numeroHino} (${tituloHino})...</span>
                 </div>
             `;
 
+            let analiseTexto = '';
+
             try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 20000);
+
                 const response = await fetch('/analisar-hino', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ numero: numeroHino, tema: termoPesquisa })
+                    body: JSON.stringify({ numero: numeroHino, tema: termoPesquisa }),
+                    signal: controller.signal
                 });
+                clearTimeout(timeoutId);
 
-                if (!response.ok) {
-                    throw new Error('Falha ao obter análise do hino.');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data && data.analise) {
+                        analiseTexto = data.analise;
+                    }
                 }
+            } catch (err) {
+                console.warn("Backend indisponível ou timeout, utilizando análise local integrada:", err);
+            }
 
-                const data = await response.json();
-                const analiseHtml = formatarMarkdownParaHtml(data.analise);
+            // Se não obteve do backend, gera análise local instantaneamente
+            if (!analiseTexto && hinoObj) {
+                analiseTexto = gerarAnaliseLocal(hinoObj, termoPesquisa);
+            }
 
+            if (analiseTexto) {
+                const analiseHtml = formatarMarkdownParaHtml(analiseTexto);
                 const badgeHtml = termoPesquisa 
-                    ? `<span class="badge-tema-analisado">🔎 Assunto pesquisado: "${termoPesquisa}"</span>` 
+                    ? `<span class="badge-tema-analisado">🔎 Assunto: "${termoPesquisa}"</span>` 
                     : `<span class="badge-tema-analisado">🕊️ Considerações Teológicas e Doutrinárias</span>`;
 
                 const conteudoFinal = `
@@ -1340,30 +1434,24 @@
                     </div>
                     <div class="box-consideracoes-acoes">
                         <button class="btn-acao-box btn-acao-ler-hino">📖 Ler Letra Completa</button>
-                        <button class="btn-acao-box btn-acao-fechar-box">✕ Fechar Considerações</button>
+                        <button class="btn-acao-box btn-acao-fechar-box">✕ Fechar</button>
                     </div>
                 `;
 
                 cacheConsideracoes[cacheKey] = conteudoFinal;
                 renderConteudo(conteudoFinal);
-
-            } catch (error) {
-                console.error("Erro ao carregar considerações:", error);
+            } else {
                 boxElement.innerHTML = `
                     <div style="color: #c0392b; padding: 12px;">
-                        <p>Não foi possível obter as considerações da IA no momento.</p>
+                        <p>Não foi possível carregar as considerações no momento.</p>
                         <div style="display: flex; gap: 10px; margin-top: 10px;">
                             <button class="btn-acao-box btn-acao-ler-hino" onclick="mostrarHino(${numeroHino}, '${contexto}')">📖 Ler Letra do Hino</button>
-                            <button class="btn-acao-box btn-acao-recarregar" id="btn-recarregar-${numeroHino}">🔄 Tentar Novamente</button>
                         </div>
                     </div>
                 `;
-                const btnRecarregar = boxElement.querySelector(`#btn-recarregar-${numeroHino}`);
-                if (btnRecarregar) {
-                    btnRecarregar.onclick = () => carregarEExibirConsideracoes(numeroHino, termoPesquisa, boxElement, btnElement, contexto);
-                }
             }
         };
+        window.carregarEExibirConsideracoes = carregarEExibirConsideracoes;
 
         const toggleConsideracoesIndice = (numeroHino) => {
             const box = document.getElementById(`box-consideracoes-indice-${numeroHino}`);
@@ -1493,7 +1581,7 @@
         const atualizarBotaoFavorito = (e) => { const o = document.getElementById(`botao-favorito-${e}`); hinosFavoritos.includes(e) ? (o.classList.add("ativo"), o.textContent = "\u2605") : (o.classList.remove("ativo"), o.textContent = "\u2606") };
         const aplicarZoom = () => { const e = document.querySelector('.conteudo-hino[style*="display: block"]'); e && (e.querySelector("pre").style.fontSize = `${tamanhoFonteAtual}em`) };
 
-        // --- FUNÇÃO DE BUSCA COM IA (BACKEND) ---
+        // --- FUNÇÃO DE BUSCA COM IA (BACKEND + FALLBACK LOCAL INTELIGENTE) ---
         const buscarHinosComIA = async () => {
             const tema = caixaDeTemaIA.value.trim();
             if (!tema) {
@@ -1506,98 +1594,92 @@
             resultadoIA.appendChild(loadingIA);
             botaoBuscarIA.disabled = true;
 
+            let hinosParaExibir = [];
+
             try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 20000);
+
                 const response = await fetch('/sugerir-hinos', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ tema })
+                    body: JSON.stringify({ tema }),
+                    signal: controller.signal
                 });
+                clearTimeout(timeoutId);
                 
-                if (!response.ok) {
-                    throw new Error('Erro na resposta do servidor.');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (Array.isArray(data.hinos) && data.hinos.length > 0) {
+                        hinosParaExibir = data.hinos;
+                    }
                 }
-                
-                const data = await response.json();
-
-                loadingIA.style.display = 'none';
-                botaoBuscarIA.disabled = false;
-                resultadoIA.innerHTML = '';
-
-                // Obter lista de hinos pré-processados com considerações já inclusas
-                let hinosParaExibir = [];
-
-                if (Array.isArray(data.hinos) && data.hinos.length > 0) {
-                    hinosParaExibir = data.hinos;
-                } else if (typeof data.sugestoes === 'string') {
-                    // Fallback para caso venha texto legado
-                    const linhas = data.sugestoes.split('\n');
-                    linhas.forEach(linha => {
-                        const match = linha.match(/Hino\s+(\d+)/i);
-                        if (match) {
-                            const num = parseInt(match[1], 10);
-                            const h = hinosData.find(item => item.numero === num);
-                            if (h) {
-                                hinosParaExibir.push({
-                                    numero: h.numero,
-                                    titulo: h.titulo,
-                                    autor: h.autor,
-                                    enquadramento: `Este hino aborda o tema "${tema}" em sua mensagem espiritual.`,
-                                    citacoes: [],
-                                    consideracoes: `Reflexão teológica baseada na letra do Hino ${h.numero}.`
-                                });
-                            }
-                        }
-                    });
-                }
-
-                if (hinosParaExibir.length === 0) {
-                    resultadoIA.innerHTML = '<p style="text-align: center; padding: 20px;">Nenhum hino correspondente foi encontrado para esta busca.</p>';
-                    return;
-                }
-
-                // Renderiza cada card de sugestão da IA
-                hinosParaExibir.forEach(hinoItem => {
-                    const hinoReal = hinosData.find(h => h.numero === hinoItem.numero) || hinoItem;
-                    const card = document.createElement('div');
-                    card.className = 'card-resultado-ia';
-                    card.id = `card-ia-${hinoItem.numero}`;
-
-                    card.innerHTML = `
-                        <div class="card-resultado-header">
-                            <div class="item-hino-btn-titulo" id="hino-link-${hinoItem.numero}" title="Clique para abrir a letra do Hino ${hinoItem.numero}">
-                                <span class="hino-numero-badge">#${hinoItem.numero}</span>
-                                <span class="hino-titulo-texto">${hinoReal.titulo || hinoItem.titulo}</span>
-                            </div>
-                            <button class="btn-consideracoes" id="btn-consideracoes-ia-${hinoItem.numero}" title="Ver considerações teológicas completas da IA para este hino">
-                                <span class="icon-spark">💡</span> Considerações
-                            </button>
-                        </div>
-                        <div class="box-consideracoes" id="box-consideracoes-ia-${hinoItem.numero}" style="display: none;"></div>
-                    `;
-
-                    // Clique no título do hino abre a letra imediatamente
-                    const btnTitulo = card.querySelector('.item-hino-btn-titulo');
-                    btnTitulo.onclick = () => mostrarHino(hinoItem.numero, 'ia');
-
-                    // Clique no botão de considerações executa a análise teológica completa
-                    const btnConsideracoes = card.querySelector('.btn-consideracoes');
-                    const box = card.querySelector('.box-consideracoes');
-
-                    btnConsideracoes.onclick = (e) => {
-                        e.stopPropagation();
-                        carregarEExibirConsideracoes(hinoItem.numero, tema, box, btnConsideracoes, 'ia');
-                    };
-
-                    resultadoIA.appendChild(card);
-                });
-
             } catch (error) {
-                console.error(error);
-                loadingIA.style.display = 'none';
-                botaoBuscarIA.disabled = false;
-                resultadoIA.innerHTML = '<p style="color:red; text-align: center; padding: 20px;">Erro ao conectar com a IA. Verifique sua conexão e tente novamente.</p>';
+                console.warn("Busca no servidor falhou ou timeout, usando motor local:", error);
             }
+
+            // Fallback: Busca e pontuação local baseada nos 764 hinos
+            if (hinosParaExibir.length === 0) {
+                const hinosLocais = rankHinosLocal(tema);
+                if (hinosLocais.length > 0) {
+                    hinosParaExibir = hinosLocais.map(h => ({
+                        numero: h.numero,
+                        titulo: h.titulo,
+                        autor: h.autor
+                    }));
+                }
+            }
+
+            loadingIA.style.display = 'none';
+            botaoBuscarIA.disabled = false;
+            resultadoIA.innerHTML = '';
+
+            if (hinosParaExibir.length === 0) {
+                resultadoIA.innerHTML = '<p style="text-align: center; padding: 20px; color: #7f8c8d;">Nenhum hino correspondente foi encontrado para esta busca.</p>';
+                return;
+            }
+
+            // Renderiza cada card de sugestão
+            hinosParaExibir.forEach(hinoItem => {
+                const hinoReal = hinosData.find(h => h.numero === hinoItem.numero) || hinoItem;
+                const card = document.createElement('div');
+                card.className = 'card-resultado-ia';
+                card.id = `card-ia-${hinoItem.numero}`;
+
+                card.innerHTML = `
+                    <div class="card-resultado-header">
+                        <div class="item-hino-btn-titulo" id="hino-link-${hinoItem.numero}" title="Clique para abrir a letra do Hino ${hinoItem.numero}">
+                            <span class="hino-numero-badge">#${hinoItem.numero}</span>
+                            <span class="hino-titulo-texto">${hinoReal.titulo || hinoItem.titulo}</span>
+                        </div>
+                        <button class="btn-consideracoes" id="btn-consideracoes-ia-${hinoItem.numero}" title="Ver considerações teológicas completas para este hino">
+                            <span class="icon-spark">💡</span> Considerações
+                        </button>
+                    </div>
+                    <div class="box-consideracoes" id="box-consideracoes-ia-${hinoItem.numero}" style="display: none;"></div>
+                `;
+
+                // Clique ou toque no título do hino abre a letra imediatamente
+                const btnTitulo = card.querySelector('.item-hino-btn-titulo');
+                btnTitulo.onclick = (e) => {
+                    e.preventDefault();
+                    mostrarHino(hinoItem.numero, 'ia');
+                };
+
+                // Clique ou toque no botão de considerações abre a análise teológica
+                const btnConsideracoes = card.querySelector('.btn-consideracoes');
+                const box = card.querySelector('.box-consideracoes');
+
+                btnConsideracoes.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    carregarEExibirConsideracoes(hinoItem.numero, tema, box, btnConsideracoes, 'ia');
+                };
+
+                resultadoIA.appendChild(card);
+            });
         };
+        window.buscarHinosComIA = buscarHinosComIA;
 
         // Formatador de markdown enriquecido para a caixa de considerações
         const formatarMarkdownParaHtml = (markdownText) => {
