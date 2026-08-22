@@ -714,7 +714,7 @@ app.post('/sugerir-hinos', async (req, res) => {
       return res.status(400).json({ error: 'O tema é obrigatório.' });
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
 
     // Formatar os dados para a IA ler melhor
     const hinosFormatados = hinosData.map(hino => {
