@@ -1178,7 +1178,7 @@
             try {
                 // Inicializa a IA com a chave do usuário
                 const genAI = new GoogleGenerativeAI(userApiKey);
-                const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+                const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
 
                 // Prepara os dados para a IA (converte a lista de hinos em texto)
                 const hinosTexto = hinosData.map(h => `Hino ${h.numero} - ${h.titulo}\nLetra: ${h.conteudo}`).join('\n---\n');
