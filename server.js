@@ -771,7 +771,7 @@ function rankHinos(query) {
 }
 
 // Helper para executar geração com timeout seguro
-async function gerarComTimeout(ai, model, config, timeoutMs = 3500) {
+async function gerarComTimeout(ai, model, config, timeoutMs = 15000) {
   return Promise.race([
     ai.models.generateContent({
       model,
@@ -793,10 +793,10 @@ function gerarAnaliseTeologicaCompleta(hino, tema) {
   let intro = '';
   if (trimmedTema) {
     intro = `### Enquadramento Teológico: "${trimmedTema}"\n\n` +
-      `O **Hino ${hino.numero} - ${hino.titulo}** (composto por *${hino.autor || 'Autor Cristão'}*) expressa com fidelidade bíblica a temática de **"${trimmedTema}"**, conduzindo a congregação à centralidade de Cristo, à suficiência da graça redentora e à confiança inabalável nas promessas divinas.`;
+      `O **Hino ${hino.numero} - ${hino.titulo}** (composto por *${hino.autor || 'Autor Cristão'}*) expressa com fidelidade bíblica a temática de **"${trimmedTema}"**, conduzindo a congregação à centralidade da fé cristã e à confiança inabalável nas promessas divinas.`;
   } else {
     intro = `### Análise Teológica e Doutrinária: Hino ${hino.numero}\n\n` +
-      `O hino **"${hino.titulo}"** (autoria de *${hino.autor || 'Tradicional'}*) constitui uma rica declaração de louvor e piedade cristã, fundamentada na revelação das Escrituras Sagradas sobre a redenção, o amor de Deus e a vida de santidade.`;
+      `O hino **"${hino.titulo}"** (autoria de *${hino.autor || 'Tradicional'}*) constitui uma rica declaração de louvor e piedade cristã, fundamentada na revelação das Escrituras Sagradas e na experiência de fé.`;
   }
 
   let citacoes = `\n\n### Citações em Destaque da Letra\n\n` +
@@ -808,10 +808,40 @@ function gerarAnaliseTeologicaCompleta(hino, tema) {
     citacoes += `* > "${v3}"\n`;
   }
 
-  let reflexao = `\n### Ensinamentos Espirituais e Fundamentação Bíblica\n\n` +
-    `1. **A Obra Redentora e o Sacrifício de Cristo:** A mensagem do hino reafirma a justificação pela fé e a reconciliação do pecador com Deus mediante o sangue derramado no Calvário (*cf. Romanos 5:1-2; Efésios 2:8-9*).\n\n` +
-    `2. **Segurança, Paz e Dependência Espiritual:** Os versos encorajam a alma a depositar toda a ansiedade e esperança nos braços do Senhor, que sustenta os Seus servos em tempos de aflição (*cf. Salmos 23:1-4; Filipenses 4:6-7*).\n\n` +
-    `3. **Esperança Escatológica e Adoração Perpétua:** Exorta a Igreja à vigilância, perseverança e gratidão, contemplando a promessa da vida eterna com o Redentor (*cf. Tito 2:13; Hebreus 13:15; Apocalipse 22:20*).`;
+  const letra = (hino.titulo + " " + hino.conteudo).toLowerCase();
+  
+  // Dicionário de reflexões dinâmicas baseadas no conteúdo real do hino
+  let pontosReflexao = [];
+
+  if (letra.includes("sangue") || letra.includes("cruz") || letra.includes("calvário") || letra.includes("perdão") || letra.includes("redentor")) {
+      pontosReflexao.push(`**A Obra Redentora e o Sacrifício de Cristo:** A mensagem do hino reafirma a justificação pela fé e a reconciliação do pecador com Deus mediante a cruz (*cf. Romanos 5:1-2; Efésios 2:8-9*).`);
+  }
+  if (letra.includes("amor") || letra.includes("graça") || letra.includes("misericórdia") || letra.includes("bondade")) {
+      pontosReflexao.push(`**A Graça e o Amor Insondável de Deus:** Os versos destacam o favor imerecido do Senhor, convidando os crentes a repousarem na segurança de Seu amor perfeito (*cf. 1 João 4:16; Lamentações 3:22-23*).`);
+  }
+  if (letra.includes("céu") || letra.includes("glória") || letra.includes("jerusalém") || letra.includes("lar") || letra.includes("voltar") || letra.includes("breve")) {
+      pontosReflexao.push(`**Esperança Escatológica e Adoração Perpétua:** Exorta a Igreja à vigilância e gratidão, contemplando a promessa da vida eterna com o Redentor (*cf. Tito 2:13; Apocalipse 22:20*).`);
+  }
+  if (letra.includes("fé") || letra.includes("oração") || letra.includes("luta") || letra.includes("paz") || letra.includes("consolo") || letra.includes("guia")) {
+      pontosReflexao.push(`**Segurança, Paz e Dependência Espiritual:** Encoraja a alma a depositar toda a ansiedade e esperança nos braços do Senhor em tempos de aflição (*cf. Salmos 23:1-4; Filipenses 4:6-7*).`);
+  }
+  if (letra.includes("espírito") || letra.includes("fogo") || letra.includes("poder") || letra.includes("unção") || letra.includes("pentecostes")) {
+      pontosReflexao.push(`**O Poder e a Unção do Espírito Santo:** A letra enfatiza a capacitação divina, o batismo e a presença viva do Consolador na jornada da Igreja (*cf. Atos 1:8; João 14:16-17*).`);
+  }
+  if (letra.includes("louvor") || letra.includes("cantai") || letra.includes("glória") || letra.includes("aleluia") || letra.includes("adoração")) {
+      pontosReflexao.push(`**Exaltação e Serviço Jubiloso:** O hino é um chamado direto para bendizer e render graças ao Deus Soberano por Seus grandes feitos (*cf. Salmos 100:1-5; Hebreus 13:15*).`);
+  }
+
+  // Fallback se nenhuma palavra chave for encontrada (garante 3 pontos baseados na teologia geral)
+  if (pontosReflexao.length < 2) {
+      pontosReflexao.push(`**Fundamento da Fé e Confissão Cristã:** Este cântico atua como uma profissão de fé, onde o crente expressa sua total dependência da revelação divina (*cf. Hebreus 11:1; Romanos 10:9*).`);
+      pontosReflexao.push(`**Comunhão e Vida Diária:** O hino serve de bússola para o devocional diário, fortalecendo a alma e apontando sempre para a direção celestial (*cf. Colossenses 3:16*).`);
+  }
+
+  let reflexao = `\n### Ensinamentos Espirituais e Fundamentação Bíblica\n\n`;
+  pontosReflexao.slice(0, 4).forEach((ponto, index) => {
+      reflexao += `${index + 1}. ${ponto}\n\n`;
+  });
 
   return intro + citacoes + reflexao;
 }
@@ -858,7 +888,7 @@ ${candidatesText}`;
     let listaHinos = null;
 
     if (ai) {
-      const modelsToTry = ['gemini-2.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.7-flash'];
+      const modelsToTry = ['gemini-3.7-flash', 'gemini-3.5-flash-lite', 'gemini-2.5-flash'];
       for (const model of modelsToTry) {
         try {
           const result = await gerarComTimeout(ai, model, {
@@ -866,7 +896,7 @@ ${candidatesText}`;
             config: {
               responseMimeType: "application/json"
             }
-          }, 3500);
+          });
 
           if (result && result.text && result.text.trim()) {
             const parsed = JSON.parse(result.text.trim());
@@ -877,7 +907,7 @@ ${candidatesText}`;
           }
         } catch (err) {
           console.warn(`Tentativa com modelo ${model} em /sugerir-hinos falhou:`, err.message || err);
-          break; // Se o primeiro modelo falhou/rate limit, cai imediatamente para o ranking local instantâneo
+          continue; // Tenta o próximo modelo
         }
       }
     }
@@ -986,19 +1016,19 @@ Instruções para a resposta:
     let analiseTexto = '';
 
     if (ai) {
-      const modelsToTry = ['gemini-2.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.7-flash'];
+      const modelsToTry = ['gemini-3.7-flash', 'gemini-3.5-flash-lite', 'gemini-2.5-flash'];
       for (const model of modelsToTry) {
         try {
           const result = await gerarComTimeout(ai, model, {
             contents: prompt
-          }, 3500);
+          });
           if (result && result.text && result.text.trim()) {
             analiseTexto = result.text.trim();
             break;
           }
         } catch (err) {
           console.warn(`Análise com ${model} falhou:`, err.message || err);
-          break; // Se o modelo falhar, gera imediatamente a análise teológica robusta
+          continue; // Tenta o próximo modelo
         }
       }
     }
