@@ -1,6 +1,35 @@
 const express = require('express');
 const { GoogleGenAI } = require('@google/genai');
+const admin = require('firebase-admin');
+const cors = require('cors');
 require('dotenv').config();
+
+// Initialize Firebase Admin (Uses application default credentials provided by the environment)
+admin.initializeApp({
+  projectId: "gen-lang-client-0930791125"
+});
+
+// Middleware to verify Firebase Auth token
+const verifyToken = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Unauthorized: Missing token' });
+  }
+
+  const token = authHeader.split('Bearer ')[1];
+  try {
+    const decodedToken = await admin.auth().verifyIdToken(token);
+    req.user = decodedToken;
+    next();
+  } catch (error) {
+    console.error('Error verifying Firebase token:', error);
+    return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+  }
+};
+
+const app = express();
+app.use(cors());
+app.use(express.json());
 
 // LISTA COMPLETA DE HINOS (Base de dados)
 const hinosData = [
@@ -694,7 +723,6 @@ const hinosData = [
   // O importante é que a variável hinosData contenha TUDO).
 ];
 
-const app = express();
 const port = 3000;
 
 let genAIClient = null;
@@ -726,6 +754,208 @@ app.use((req, res, next) => {
 
 app.use(express.json());
 app.use(express.static('.'));
+
+// --- BASE DE DADOS BÍBLICA: Almeida Corrigida Fiel 2011 (ACF 2011) ---
+const fs = require('fs');
+const path = require('path');
+let bibleACFData = null;
+
+try {
+  const biblePath = path.join(__dirname, 'acf_2011.json');
+  if (fs.existsSync(biblePath)) {
+    bibleACFData = JSON.parse(fs.readFileSync(biblePath, 'utf8'));
+    console.log(`Bíblia ACF 2011 carregada com sucesso (${bibleACFData.length} livros).`);
+  }
+} catch (err) {
+  console.warn("Aviso ao carregar acf_2011.json:", err.message);
+}
+
+// Mapeador de livros bíblicos e abreviações em português
+function encontrarLivroBiblia(query) {
+  if (!bibleACFData || !query) return null;
+  const q = query.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+
+  for (const b of bibleACFData) {
+    const bNameNorm = b.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+    const bAbbrevNorm = b.abbrev.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+    if (bNameNorm === q || bAbbrevNorm === q) return b;
+  }
+
+  // Mapeamentos específicos e sinônimos frequentes
+  if (q.startsWith("lament") || q === "lm" || q === "lam") {
+    return bibleACFData.find(b => b.abbrev === "lm");
+  }
+  if (q.startsWith("cantar") || q === "ct" || q.startsWith("cantico")) {
+    return bibleACFData.find(b => b.abbrev === "ct");
+  }
+  if (q === "sl" || q.startsWith("salm")) {
+    return bibleACFData.find(b => b.abbrev === "sl");
+  }
+  if (q === "pv" || q === "pr" || q.startsWith("proverb")) {
+    return bibleACFData.find(b => b.abbrev === "pv");
+  }
+  if (q === "ap" || q.startsWith("apoc") || q.startsWith("revel")) {
+    return bibleACFData.find(b => b.abbrev === "ap");
+  }
+
+  for (const b of bibleACFData) {
+    const bNameNorm = b.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+    if (bNameNorm.startsWith(q) || q.startsWith(bNameNorm)) return b;
+  }
+  return null;
+}
+
+// Função de busca e extração de versículos em ACF 2011
+function buscarTextoBiblicoACF(ref) {
+  if (!bibleACFData || !ref || typeof ref !== "string") return null;
+  const limpa = ref.replace(/[()\[\]*]/g, "").trim();
+
+  // Expressão regular para capturar Livro, Capítulo e Versículos
+  const match = limpa.match(/^([1-3]?\s*[a-zA-ZáàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ]+)\.?\s+(\d+)(?:[.:,](\s*\d+.*))?$/i);
+  if (!match) return null;
+
+  const rawBook = match[1];
+  const capNum = parseInt(match[2], 10);
+  const rawVerses = match[3] ? match[3].trim() : "";
+
+  const livroObj = encontrarLivroBiblia(rawBook);
+  if (!livroObj) return null;
+
+  const capIdx = capNum - 1;
+  const capitulo = livroObj.chapters ? livroObj.chapters[capIdx] : null;
+  if (!capitulo) return null;
+
+  const versiculosSelecionados = [];
+
+  if (!rawVerses) {
+    // Capítulo inteiro
+    capitulo.forEach((t, i) => {
+      versiculosSelecionados.push({ numero: i + 1, texto: t });
+    });
+  } else {
+    // Analisa versículos, intervalos e listas (ex: "1-4", "16", "1-3, 6")
+    const partes = rawVerses.split(",");
+    for (const parte of partes) {
+      const p = parte.trim();
+      if (!p) continue;
+      if (p.includes("-") || p.includes("–")) {
+        const [iniStr, fimStr] = p.split(/[-–]/);
+        const ini = parseInt(iniStr, 10);
+        const fim = parseInt(fimStr, 10);
+        if (!isNaN(ini) && !isNaN(fim)) {
+          for (let v = ini; v <= fim; v++) {
+            if (capitulo[v - 1]) {
+              versiculosSelecionados.push({ numero: v, texto: capitulo[v - 1] });
+            }
+          }
+        }
+      } else {
+        const v = parseInt(p, 10);
+        if (!isNaN(v) && capitulo[v - 1]) {
+          versiculosSelecionados.push({ numero: v, texto: capitulo[v - 1] });
+        }
+      }
+    }
+  }
+
+  if (versiculosSelecionados.length === 0) return null;
+
+  const formatado = versiculosSelecionados
+    .map(v => (versiculosSelecionados.length > 1 ? `(${v.numero}) ` : "") + v.texto)
+    .join(" ");
+
+  const nomeExibicao = livroObj.name === "Lamentações de Jeremias" ? "Lamentações" : livroObj.name;
+
+  return {
+    referenciaOriginal: ref,
+    referenciaFormatada: `${nomeExibicao} ${capNum}:${rawVerses || "1-" + capitulo.length}`,
+    livro: nomeExibicao,
+    capitulo: capNum,
+    versao: "Almeida Corrigida Fiel (ACF 2011)",
+    versiculos: versiculosSelecionados,
+    textoFormatado: formatado
+  };
+}
+
+// Fallback inteligente com Gemini caso seja uma referência atípica
+async function buscarTextoBiblicoComGemini(ref) {
+  const ai = getGenAI();
+  if (!ai) return null;
+  const prompt = `Você é um erudito bíblico. Escreva o texto bíblico exato e fidedigno da passagem "${ref}" na versão Almeida Corrigida Fiel 2011 (ACF 2011) da Sociedade Bíblica Trinitariana do Brasil.
+Retorne EXCLUSIVAMENTE um objeto JSON válido (sem comentários) no seguinte formato:
+{
+  "referenciaOriginal": "${ref}",
+  "referenciaFormatada": "Livro Cap:Versículos",
+  "livro": "Nome do Livro",
+  "capitulo": 1,
+  "versao": "Almeida Corrigida Fiel (ACF 2011)",
+  "versiculos": [
+    { "numero": 1, "texto": "texto do versículo" }
+  ],
+  "textoFormatado": "texto completo dos versículos"
+}`;
+
+  const models = ['gemini-2.5-flash', 'gemini-3.8-flash', 'gemini-3.1-flash-lite'];
+  for (const m of models) {
+    try {
+      const res = await gerarComTimeout(ai, m, { contents: prompt }, 10000);
+      if (res && res.text) {
+        let cleanJson = res.text.trim();
+        if (cleanJson.startsWith('```json')) {
+          cleanJson = cleanJson.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+        } else if (cleanJson.startsWith('```')) {
+          cleanJson = cleanJson.replace(/^```\s*/, '').replace(/\s*```$/, '');
+        }
+        return JSON.parse(cleanJson);
+      }
+    } catch (e) {
+      console.warn(`Tentativa de consulta bíblica com ${m} falhou:`, e.message);
+    }
+  }
+  return null;
+}
+
+// --- ROTA PÚBLICA: Consulta de Versículo Bíblico na Versão ACF 2011 ---
+app.post('/api/texto-biblico', async (req, res) => {
+  try {
+    const { referencia } = req.body;
+    if (!referencia || typeof referencia !== 'string') {
+      return res.status(400).json({ error: 'Referência bíblica é obrigatória.' });
+    }
+
+    // 1. Tenta resolver instantaneamente pela base local ACF 2011
+    let resultado = buscarTextoBiblicoACF(referencia);
+
+    // 2. Se não encontrou (ex: formato complexo), tenta o Gemini
+    if (!resultado) {
+      resultado = await buscarTextoBiblicoComGemini(referencia);
+    }
+
+    if (!resultado) {
+      return res.status(404).json({ error: 'Texto bíblico não encontrado para a referência indicada.' });
+    }
+
+    return res.json(resultado);
+  } catch (error) {
+    console.error("Erro na rota /api/texto-biblico:", error);
+    return res.status(500).json({ error: 'Erro ao processar consulta bíblica.' });
+  }
+});
+
+app.get('/api/texto-biblico', async (req, res) => {
+  const ref = req.query.ref || req.query.referencia;
+  if (!ref) {
+    return res.status(400).json({ error: 'Parâmetro ?ref= é obrigatório.' });
+  }
+  let resultado = buscarTextoBiblicoACF(ref);
+  if (!resultado) {
+    resultado = await buscarTextoBiblicoComGemini(ref);
+  }
+  if (!resultado) {
+    return res.status(404).json({ error: 'Texto bíblico não encontrado.' });
+  }
+  return res.json(resultado);
+});
 
 // --- ROTA: Envia a lista de hinos para o Frontend ---
 app.get('/api/hinos', (req, res) => {
@@ -847,7 +1077,7 @@ function gerarAnaliseTeologicaCompleta(hino, tema) {
 }
 
 // --- ROTA IA: Sugere até 10 hinos baseados no tema ---
-app.post('/sugerir-hinos', async (req, res) => {
+app.post('/api/sugerir-hinos', verifyToken, async (req, res) => {
   try {
     const { tema } = req.body;
     if (!tema || !tema.trim()) {
@@ -966,7 +1196,7 @@ ${candidatesText}`;
 });
 
 // --- ROTA IA: Análise detalhada e considerações teológicas do hino ---
-app.post('/analisar-hino', async (req, res) => {
+app.post('/api/analisar-hino', verifyToken, async (req, res) => {
   try {
     const { numero, tema } = req.body;
     if (!numero) {
@@ -995,7 +1225,8 @@ Instruções para a resposta:
 1. Explique com profundidade teológica como a mensagem central deste hino se conecta e se enquadra na busca ("${trimmedTema}").
 2. Cite explicitamente frases ou versos entre aspas ("...") da letra do hino que comprovam essa ligação doutrinária e espiritual.
 3. Apresente considerações espirituais e teológicas edificantes sobre o ensinamento do hino para a fé cristã incluindo passagens bíblicas que afirmam tais verdades.
-4. Estruture com títulos em markdown (### ou ####), parágrafos bem organizados e versos destacados em aspas.`;
+4. Ao citar referências bíblicas, use sempre o padrão claro em português (ex.: Salmos 23:1-4, Romanos 5:1-2, João 3:16, Efésios 2:8-9), pois o aplicativo transforma as referências em botões interativos para leitura instantânea na versão ACF 2011.
+5. Estruture com títulos em markdown (### ou ####), parágrafos bem organizados e versos destacados em aspas.`;
     } else {
       prompt = `Você é um hinólogo e teólogo cristão especialista.
 Faça uma análise teológica, doutrinária e espiritual completa do Hino ${hino.numero} - "${hino.titulo}" (Autor: ${hino.autor}).
@@ -1009,14 +1240,15 @@ Instruções para a resposta:
 1. Apresente o enquadramento teológico e a mensagem central do hino (contexto bíblico e doutrinário).
 2. Cite explicitamente frases e versos-chave entre aspas ("...") extraídos diretamente da letra do hino.
 3. Apresente considerações espirituais e teológicas edificantes sobre o ensino do hino para a vida de fé incluindo passagens bíblicas que afirmam tais verdades.
-4. Estruture com títulos em markdown (### ou ####), parágrafos bem organizados e versos destacados em aspas.`;
+4. Ao citar referências bíblicas, use sempre o padrão claro em português (ex.: Salmos 23:1-4, Romanos 5:1-2, João 3:16, Efésios 2:8-9), pois o aplicativo transforma as referências em botões interativos para leitura instantânea na versão ACF 2011.
+5. Estruture com títulos em markdown (### ou ####), parágrafos bem organizados e versos destacados em aspas.`;
     }
 
     const ai = getGenAI();
     let analiseTexto = '';
 
     if (ai) {
-      const modelsToTry = ['gemini-3.7-flash', 'gemini-3.5-flash-lite', 'gemini-2.5-flash'];
+      const modelsToTry = ['gemini-2.5-flash', 'gemini-3.8-flash', 'gemini-3.1-flash-lite'];
       for (const model of modelsToTry) {
         try {
           const result = await gerarComTimeout(ai, model, {
@@ -1034,7 +1266,7 @@ Instruções para a resposta:
     }
 
     if (!analiseTexto) {
-      analiseTexto = gerarAnaliseTeologicaCompleta(hino, trimmedTema);
+      throw new Error("A Inteligência Artificial falhou ao gerar a análise.");
     }
 
     return res.json({
@@ -1048,13 +1280,7 @@ Instruções para a resposta:
 
   } catch (error) {
     console.error("Erro ao analisar hino:", error);
-    const num = parseInt(req.body?.numero, 10);
-    const hino = hinosData.find(h => h.numero === num);
-    if (hino) {
-      const analiseLocal = gerarAnaliseTeologicaCompleta(hino, req.body?.tema);
-      return res.json({ analise: analiseLocal, hino: { numero: hino.numero, titulo: hino.titulo, autor: hino.autor } });
-    }
-    res.status(500).json({ error: 'Erro ao gerar análise do hino.' });
+    return res.status(500).json({ error: 'Erro interno na IA ao gerar análise do hino.' });
   }
 });
 

@@ -417,10 +417,327 @@
             padding: 10px 16px;
         }
     }
+
+    /* --- REFERÊNCIAS BÍBLICAS INTERATIVAS NAS CONSIDERAÇÕES --- */
+    .btn-ref-biblica {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        background: #eef7f4;
+        color: #1b5345;
+        border: 1px solid #a3d9cf;
+        border-radius: 6px;
+        padding: 3px 8px;
+        margin: 2px 3px;
+        font-size: 0.9em;
+        font-family: inherit;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        vertical-align: middle;
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        line-height: 1.3;
+    }
+    .btn-ref-biblica:hover {
+        background: #d4ede7;
+        color: #0d382e;
+        border-color: #6ec4b3;
+        transform: translateY(-1.5px);
+        box-shadow: 0 3px 8px rgba(27, 83, 69, 0.15);
+    }
+    .btn-ref-biblica:active {
+        transform: translateY(0);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+    .btn-ref-biblica .icon-biblia {
+        font-size: 1em;
+        color: #c5a059;
+    }
+
+    /* --- POP-UP MODAL TEXTO BÍBLICO ACF 2011 --- */
+    .modal-biblia-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: rgba(15, 23, 42, 0.65);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 100000;
+        padding: 16px;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.22s ease, visibility 0.22s ease;
+    }
+    .modal-biblia-overlay.aberto {
+        opacity: 1;
+        visibility: visible;
+    }
+    .modal-biblia-container {
+        background: #ffffff;
+        width: 100%;
+        max-width: 600px;
+        max-height: 86vh;
+        border-radius: 16px;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(0, 0, 0, 0.06);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        transform: scale(0.93) translateY(12px);
+        transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .modal-biblia-overlay.aberto .modal-biblia-container {
+        transform: scale(1) translateY(0);
+    }
+    .modal-biblia-header {
+        background: linear-gradient(135deg, #2c4a3e 0%, #1e362c 100%);
+        color: #ffffff;
+        padding: 6px 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 2px solid #c5a059;
+    }
+    .modal-biblia-titulo-area {
+        display: flex;
+        align-items: center;
+    }
+    .modal-biblia-titulo {
+        font-family: 'Playfair Display', Georgia, serif;
+        font-size: 1.05rem;
+        font-weight: 700;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: #f8fafc;
+        letter-spacing: -0.2px;
+        line-height: 1.2;
+    }
+    .modal-icone-biblia {
+        font-size: 1rem;
+        filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2));
+    }
+    .btn-fechar-modal-biblia {
+        background: rgba(255, 255, 255, 0.12);
+        border: none;
+        color: #ffffff;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s ease;
+        line-height: 1;
+        flex-shrink: 0;
+    }
+    .btn-fechar-modal-biblia:hover {
+        background: rgba(255, 255, 255, 0.25);
+        transform: scale(1.08);
+    }
+    .modal-biblia-corpo {
+        padding: 16px 20px;
+        overflow-y: auto;
+        font-size: 1.12rem;
+        line-height: 1.75;
+        color: #1e293b;
+        font-family: 'Georgia', 'Cambria', serif;
+        background: #fafaf9;
+    }
+    .modal-biblia-loading {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        padding: 36px 20px;
+        color: #4a6a5d;
+        font-size: 1rem;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    .spinner-biblia {
+        width: 36px;
+        height: 36px;
+        border: 3px solid rgba(74, 106, 93, 0.2);
+        border-top-color: #2c4a3e;
+        border-radius: 50%;
+        animation: spinBiblia 0.8s linear infinite;
+    }
+    @keyframes spinBiblia {
+        to { transform: rotate(360deg); }
+    }
+    .versiculo-linha {
+        margin-bottom: 12px;
+        position: relative;
+    }
+    .versiculo-linha:last-child {
+        margin-bottom: 0;
+    }
+    .num-versiculo-sup {
+        font-weight: 700;
+        color: #2c4a3e;
+        font-size: 0.8em;
+        vertical-align: super;
+        margin-right: 5px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: #e8f3f0;
+        padding: 1px 5px;
+        border-radius: 4px;
+        border: 1px solid #c9e5de;
+    }
+    .texto-versiculo {
+        color: #20262e;
+    }
+    .modal-biblia-rodape {
+        padding: 8px 16px;
+        background: #f1f5f9;
+        border-top: 1px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .modal-biblia-info-versao {
+        font-size: 0.78rem;
+        color: #64748b;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    .modal-biblia-botoes {
+        display: flex;
+        gap: 8px;
+        margin-left: auto;
+    }
+    .btn-modal-copiar {
+        background: #eef7f4;
+        color: #1b5345;
+        border: 1px solid #a3d9cf;
+        padding: 5px 12px;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.15s;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    .btn-modal-copiar:hover {
+        background: #d4ede7;
+        color: #0d382e;
+        border-color: #6ec4b3;
+    }
+    .btn-modal-fechar-secundario {
+        background: #e2e8f0;
+        color: #475569;
+        border: none;
+        padding: 5px 12px;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    .btn-modal-fechar-secundario:hover {
+        background: #cbd5e1;
+    }
   </style>
+  
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
+    import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
+
+    const firebaseConfig = {
+      projectId: "gen-lang-client-0930791125",
+      appId: "1:433344089026:web:2ce9aafa91ada815ae245b",
+      apiKey: "AIzaSyDDU_kGqwVOnHBYbSteH2NjCYs-69fYaz8",
+      authDomain: "gen-lang-client-0930791125.firebaseapp.com",
+      storageBucket: "gen-lang-client-0930791125.firebasestorage.app",
+      messagingSenderId: "433344089026"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const provider = new GoogleAuthProvider();
+
+    window.firebaseAuth = auth;
+    window.signInWithGoogle = async () => {
+      try {
+        const result = await signInWithPopup(auth, provider);
+        console.log("Logged in as:", result.user.email);
+      } catch (error) {
+        console.error("Login falhou:", error);
+        alert("Erro ao fazer login: " + error.message);
+      }
+    };
+    window.signOutGoogle = () => signOut(auth);
+
+    onAuthStateChanged(auth, async (user) => {
+      const loginOverlay = document.getElementById('login-overlay');
+      if (user) {
+        if (loginOverlay) loginOverlay.style.display = 'none';
+        window.authToken = await user.getIdToken();
+      } else {
+        if (loginOverlay) loginOverlay.style.display = 'flex';
+        window.authToken = null;
+      }
+    });
+  </script>
 </head>
 <body>
+  <div id="login-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-color, #fafafa); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999;">
+    <h2 style="font-family: 'Playfair Display', serif; font-size: 2rem; color: var(--primary-color, #4a6a5d); margin-bottom: 24px;">Hinário Digital</h2>
+    <p style="margin-bottom: 32px; color: var(--text-color, #333); font-size: 1.1rem; text-align: center; padding: 0 20px;">Faça login com o Google para acessar o aplicativo.</p>
+    <button onclick="window.signInWithGoogle()" style="background-color: white; color: #757575; border: 1px solid #ddd; border-radius: 4px; padding: 12px 24px; font-size: 1rem; cursor: pointer; display: flex; align-items: center; gap: 12px; font-weight: 500; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+      <svg width="18" height="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"/><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"/><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"/></svg>
+      Continuar com o Google
+    </button>
+  </div>
+
+  <!-- Pop-up de Leitura Bíblica ACF 2011 -->
+  <div id="modal-biblia-overlay" class="modal-biblia-overlay" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="modal-biblia-titulo">
+    <div class="modal-biblia-container" onclick="event.stopPropagation()">
+      <div class="modal-biblia-header">
+        <div class="modal-biblia-titulo-area">
+          <h3 id="modal-biblia-titulo" class="modal-biblia-titulo">
+            <span class="modal-icone-biblia">📖</span>
+            <span id="modal-biblia-ref-texto">Texto Bíblico</span>
+          </h3>
+        </div>
+        <button type="button" class="btn-fechar-modal-biblia" id="btn-fechar-modal-topo" title="Fechar janela (Esc)">✕</button>
+      </div>
+      <div class="modal-biblia-corpo" id="modal-biblia-corpo">
+        <!-- O texto dos versículos será inserido dinamicamente aqui -->
+      </div>
+      <div class="modal-biblia-rodape">
+        <div class="modal-biblia-info-versao">
+          <span>🕊️ Tradução Fidedigna • SBTB (ACF 2011)</span>
+        </div>
+        <div class="modal-biblia-botoes">
+          <button type="button" class="btn-modal-copiar" id="btn-modal-copiar-texto" title="Copiar versículos para a área de transferência">
+            <span id="btn-copiar-icone">📋</span> <span id="btn-copiar-rotulo">Copiar Texto</span>
+          </button>
+          <button type="button" class="btn-modal-fechar-secundario" id="btn-fechar-modal-rodape">Fechar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="container">
+    <div style="text-align: right; margin-bottom: 20px;">
+      <button onclick="window.signOutGoogle()" style="background: transparent; border: none; color: var(--primary-color, #4a6a5d); cursor: pointer; font-size: 0.9rem; text-decoration: underline;">Sair da conta</button>
+    </div>
     
     <div id="secao-solicitados" style="display: none;">
       <h2 style="margin-top:0;">Hinos cantados hoje</h2>
@@ -1372,6 +1689,62 @@
             return intro + citacoes + consideracoes;
         };
 
+        // Gerador teológico local de contingência para fundamentação bíblica imediata
+        const gerarAnaliseTeologicaLocal = (hino, tema) => {
+            const estrofes = (hino.conteudo || "").split('\n\n').filter(Boolean);
+            const v1 = estrofes[0] ? estrofes[0].replace(/\n/g, ' ') : (hino.titulo || '');
+            const v2 = estrofes.length > 1 ? estrofes[1].replace(/\n/g, ' ') : '';
+            const v3 = estrofes.length > 2 ? estrofes[2].replace(/\n/g, ' ') : '';
+            const trimmedTema = (tema || '').trim();
+
+            let intro = '';
+            if (trimmedTema) {
+                intro = `### Enquadramento Teológico: "${trimmedTema}"\n\n` +
+                    `O **Hino ${hino.numero} - ${hino.titulo}** (composto por *${hino.autor || 'Autor Cristão'}*) expressa com fidelidade bíblica a temática de **"${trimmedTema}"**, conduzindo a congregação à centralidade da fé cristã e à confiança inabalável nas promessas divinas.`;
+            } else {
+                intro = `### Análise Teológica e Doutrinária: Hino ${hino.numero}\n\n` +
+                    `O hino **"${hino.titulo}"** (autoria de *${hino.autor || 'Tradicional'}*) constitui uma rica declaração de louvor e piedade cristã, fundamentada na revelação das Sagradas Escrituras e na experiência viva da fé em Cristo.`;
+            }
+
+            let citacoes = `\n\n### Citações em Destaque da Letra\n\n` + `* > "${v1}"\n`;
+            if (v2) citacoes += `* > "${v2}"\n`;
+            if (v3) citacoes += `* > "${v3}"\n`;
+
+            const letra = ((hino.titulo || '') + " " + (hino.conteudo || '')).toLowerCase();
+            let pontosReflexao = [];
+
+            if (letra.includes("sangue") || letra.includes("cruz") || letra.includes("calvário") || letra.includes("perdão") || letra.includes("redentor")) {
+                pontosReflexao.push(`**A Obra Redentora e o Sacrifício de Cristo:** A mensagem do hino reafirma a justificação pela fé e a reconciliação do pecador com Deus mediante a cruz (*cf. Romanos 5:1-2; Efésios 2:8-9*).`);
+            }
+            if (letra.includes("amor") || letra.includes("graça") || letra.includes("misericórdia") || letra.includes("bondade")) {
+                pontosReflexao.push(`**A Graça e o Amor Insondável de Deus:** Os versos destacam o favor imerecido do Senhor, convidando os crentes a repousarem na segurança de Seu amor perfeito (*cf. 1 João 4:16; Lamentações 3:22-23*).`);
+            }
+            if (letra.includes("céu") || letra.includes("glória") || letra.includes("jerusalém") || letra.includes("lar") || letra.includes("voltar") || letra.includes("breve")) {
+                pontosReflexao.push(`**Esperança Escatológica e Glória Eterna:** Exorta a Igreja à vigilância e gratidão, contemplando a promessa da vida eterna com o Redentor (*cf. Tito 2:13; Apocalipse 22:20*).`);
+            }
+            if (letra.includes("fé") || letra.includes("oração") || letra.includes("luta") || letra.includes("paz") || letra.includes("consolo") || letra.includes("guia")) {
+                pontosReflexao.push(`**Segurança, Paz e Dependência Espiritual:** Encoraja a alma a depositar toda a ansiedade e esperança nos braços do Senhor em tempos de aflição (*cf. Salmos 23:1-4; Filipenses 4:6-7*).`);
+            }
+            if (letra.includes("espírito") || letra.includes("fogo") || letra.includes("poder") || letra.includes("unção") || letra.includes("consolador")) {
+                pontosReflexao.push(`**O Poder e a Unção do Espírito Santo:** A letra enfatiza a capacitação divina, a santificação e a presença viva do Consolador na jornada da Igreja (*cf. Atos 1:8; João 14:16-17*).`);
+            }
+            if (letra.includes("louvor") || letra.includes("cantai") || letra.includes("glória") || letra.includes("aleluia") || letra.includes("adoração")) {
+                pontosReflexao.push(`**Exaltação e Serviço Jubiloso:** O hino é um chamado direto para bendizer e render graças ao Deus Soberano por Seus grandes feitos (*cf. Salmos 100:1-5; Hebreus 13:15*).`);
+            }
+
+            if (pontosReflexao.length < 2) {
+                pontosReflexao.push(`**Fundamento da Fé e Confissão Cristã:** Este cântico atua como uma profissão de fé, onde o crente expressa sua total dependência da revelação divina (*cf. Hebreus 11:1; Romanos 10:9*).`);
+                pontosReflexao.push(`**Comunhão e Vida Diária:** O hino serve de bússola para o devocional diário, fortalecendo a alma e apontando sempre para a direção celestial (*cf. Colossenses 3:16*).`);
+            }
+
+            let reflexao = `\n### Ensinamentos Espirituais e Fundamentação Bíblica\n\n`;
+            pontosReflexao.slice(0, 4).forEach((ponto, index) => {
+                reflexao += `${index + 1}. ${ponto}\n\n`;
+            });
+
+            return intro + citacoes + reflexao;
+        };
+
         const carregarEExibirConsideracoes = async (numeroHino, tema, boxElement, btnElement, contexto = 'indice') => {
             const isAberto = boxElement.style.display !== 'none';
             if (isAberto) {
@@ -1429,10 +1802,18 @@
             try {
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 25000);
+                
+                let currentToken = '';
+                if (window.firebaseAuth && window.firebaseAuth.currentUser) {
+                    currentToken = await window.firebaseAuth.currentUser.getIdToken();
+                }
 
-                const response = await fetch(`${apiBaseUrl}/analisar-hino`, {
+                const response = await fetch(`${apiBaseUrl}/api/analisar-hino`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                      'Content-Type': 'application/json',
+                      'Authorization': 'Bearer ' + currentToken
+                    },
                     body: JSON.stringify({ numero: numeroHino, tema: termoPesquisa }),
                     signal: controller.signal
                 });
@@ -1448,9 +1829,9 @@
                 console.warn("Consulta à API no servidor falhou ou timeout, usando gerador teológico interno:", err);
             }
 
-            // Se a API não respondeu a tempo ou falhou, usa a fundamentação teológica completa
+            // Se a API não respondeu a tempo ou falhou, usa a fundamentação teológica e bíblica local
             if (!analiseBruta) {
-                analiseBruta = gerarAnaliseLocal(hinoObj, termoPesquisa);
+                analiseBruta = gerarAnaliseTeologicaLocal(hinoObj, termoPesquisa);
             }
 
             const analiseHtml = formatarMarkdownParaHtml(analiseBruta);
@@ -1624,10 +2005,18 @@
             try {
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 20000);
+                
+                let currentToken = '';
+                if (window.firebaseAuth && window.firebaseAuth.currentUser) {
+                    currentToken = await window.firebaseAuth.currentUser.getIdToken();
+                }
 
-                const response = await fetch(`${apiBaseUrl}/sugerir-hinos`, {
+                const response = await fetch(`${apiBaseUrl}/api/sugerir-hinos`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                      'Content-Type': 'application/json',
+                      'Authorization': 'Bearer ' + currentToken
+                    },
                     body: JSON.stringify({ tema }),
                     signal: controller.signal
                 });
@@ -1706,7 +2095,10 @@
         };
         window.buscarHinosComIA = buscarHinosComIA;
 
-        // Formatador de markdown enriquecido para a caixa de considerações
+        // Formatador de markdown enriquecido para a caixa de considerações com links bíblicos interativos
+        const bookNamesPattern = "(?:[1-3]\\s*)?(?:Gênesis|Genesis|Êxodo|Exodo|Levítico|Levitico|Números|Numeros|Deuteronômio|Deuteronomio|Josué|Josue|Juízes|Juizes|Rute|Samuel|Reis|Crônicas|Cronicas|Esdras|Neemias|Ester|Jó|Salmos?|Provérbios|Proverbios|Eclesiastes|Cantares|Cânticos|Canticos|Isaías|Isaias|Jeremias|Lamentações|Lamentacoes|Ezequiel|Daniel|Oseias|Oséias|Joel|Amós|Amos|Obadias|Jonas|Miqueias|Miquéias|Naum|Habacuque|Sofonias|Ageu|Zacarias|Malaquias|Mateus|Marcos|Lucas|João|Joao|Atos|Romanos|Coríntios|Corintios|Gálatas|Galatas|Efésios|Efesios|Filipenses|Colossenses|Tessalonicenses|Timóteo|Timoteo|Tito|Filemom|Filemon|Hebreus|Tiago|Pedro|Judas|Apocalipse|Gn|Êx|Ex|Lv|Nm|Dt|Js|Jos|Jz|Rt|1Sm|2Sm|1Rs|2Rs|1Cr|2Cr|Ed|Esd|Ne|Et|Est|Sl|Sal|Pv|Pr|Ec|Ecl|Ct|Is|Isa|Jr|Jer|Lm|Lam|Ez|Eze|Dn|Dan|Os|Jl|Am|Ob|Jn|Jon|Mq|Miq|Na|Hc|Hab|Sf|Sof|Ag|Zc|Zac|Ml|Mal|Mt|Mat|Mc|Mar|Lc|Luc|Jo|At|Rm|Ro|Rom|1Co|2Co|1Cor|2Cor|Gl|Gal|Ef|Eph|Fp|Fl|Fil|Cl|Col|1Ts|2Ts|1Tes|2Tes|1Tm|2Tm|1Tim|2Tim|Tt|Tit|Fm|Flm|Hb|Heb|Tg|Tia|1Pe|2Pe|1Ped|2Ped|1Jo|2Jo|3Jo|Jd|Jud|Ap|Apoc)";
+        const bibleRefRegex = new RegExp(`\\b(${bookNamesPattern}\\.?\\s+\\d+\\s*[:.,]\\s*\\d+(?:\\s*[-–]\\s*\\d+)?(?:\\s*,\\s*\\d+(?:\\s*[-–]\\s*\\d+)?)*)`, "gi");
+
         const formatarMarkdownParaHtml = (markdownText) => {
             if (!markdownText) return '';
             let html = markdownText
@@ -1725,6 +2117,12 @@
             // Format bold and italic
             html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
             html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+            // Transforma referências bíblicas encontradas no texto em botões interativos
+            html = html.replace(bibleRefRegex, (match) => {
+                const cleanRef = match.replace(/&amp;/g, '&').trim();
+                return `<button type="button" class="btn-ref-biblica" data-ref="${cleanRef}" title="Clique para abrir ${cleanRef} na versão ACF 2011"><span class="icon-biblia">📖</span> ${match}</button>`;
+            });
 
             // Format block elements
             const blocks = html.split(/\n\n+/);
@@ -1746,6 +2144,411 @@
                 return `<p>${b.replace(/\n/g, '<br>')}</p>`;
             }).join('');
         };
+
+        // --- SISTEMA DE POP-UP DE TEXTO BÍBLICO (ALMEIDA CORRIGIDA FIEL 2011 - ACF 2011) ---
+        const modalBibliaOverlay = document.getElementById('modal-biblia-overlay');
+        const modalBibliaRefTexto = document.getElementById('modal-biblia-ref-texto');
+        const modalBibliaCorpo = document.getElementById('modal-biblia-corpo');
+        const btnFecharModalTopo = document.getElementById('btn-fechar-modal-topo');
+        const btnFecharModalRodape = document.getElementById('btn-fechar-modal-rodape');
+        const btnModalCopiarTexto = document.getElementById('btn-modal-copiar-texto');
+        const btnCopiarIcone = document.getElementById('btn-copiar-icone');
+        const btnCopiarRotulo = document.getElementById('btn-copiar-rotulo');
+
+        let textoBiblicoAtualParaCopia = '';
+        let acfBibleDataClient = null;
+        let carregandoBibliaClient = false;
+
+        // Pré-cache dos versículos mais citados nas considerações dos hinos (resposta em 0ms!)
+        const cacheTextosBiblicos = {
+            "João 3:16": {
+                referenciaFormatada: "João 3:16",
+                versao: "Almeida Corrigida Fiel (ACF 2011)",
+                versiculos: [{ numero: 16, texto: "Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito, para que todo aquele que nele crê não pereça, mas tenha a vida eterna." }],
+                textoFormatado: "Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito, para que todo aquele que nele crê não pereça, mas tenha a vida eterna."
+            },
+            "Salmos 23:1-4": {
+                referenciaFormatada: "Salmos 23:1-4",
+                versao: "Almeida Corrigida Fiel (ACF 2011)",
+                versiculos: [
+                    { numero: 1, texto: "O Senhor é o meu pastor, nada me faltará." },
+                    { numero: 2, texto: "Deitar-me faz em verdes pastos, guia-me mansamente a águas tranquilas." },
+                    { numero: 3, texto: "Refrigera a minha alma; guia-me pelas veredas da justiça por amor do seu nome." },
+                    { numero: 4, texto: "Ainda que eu andasse pelo vale da sombra da morte, não temeria mal algum, porque tu estás comigo; a tua vara e o teu cajado me consolam." }
+                ],
+                textoFormatado: "(1) O Senhor é o meu pastor, nada me faltará. (2) Deitar-me faz em verdes pastos, guia-me mansamente a águas tranquilas. (3) Refrigera a minha alma; guia-me pelas veredas da justiça por amor do seu nome. (4) Ainda que eu andasse pelo vale da sombra da morte, não temeria mal algum, porque tu estás comigo; a tua vara e o teu cajado me consolam."
+            },
+            "Romanos 5:1-2": {
+                referenciaFormatada: "Romanos 5:1-2",
+                versao: "Almeida Corrigida Fiel (ACF 2011)",
+                versiculos: [
+                    { numero: 1, texto: "Tendo sido, pois, justificados pela fé, temos paz com Deus, por nosso Senhor Jesus Cristo;" },
+                    { numero: 2, texto: "Pelo qual também temos entrada pela fé a esta graça, na qual estamos firmes, e nos gloriamos na esperança da glória de Deus." }
+                ],
+                textoFormatado: "(1) Tendo sido, pois, justificados pela fé, temos paz com Deus, por nosso Senhor Jesus Cristo; (2) Pelo qual também temos entrada pela fé a esta graça, na qual estamos firmes, e nos gloriamos na esperança da glória de Deus."
+            },
+            "Efésios 2:8-9": {
+                referenciaFormatada: "Efésios 2:8-9",
+                versao: "Almeida Corrigida Fiel (ACF 2011)",
+                versiculos: [
+                    { numero: 8, texto: "Porque pela graça sois salvos, por meio da fé; e isto não vem de vós, é dom de Deus." },
+                    { numero: 9, texto: "Não vem das obras, para que ninguém se glorie;" }
+                ],
+                textoFormatado: "(8) Porque pela graça sois salvos, por meio da fé; e isto não vem de vós, é dom de Deus. (9) Não vem das obras, para que ninguém se glorie;"
+            },
+            "1 João 4:16": {
+                referenciaFormatada: "1 João 4:16",
+                versao: "Almeida Corrigida Fiel (ACF 2011)",
+                versiculos: [{ numero: 16, texto: "E nós conhecemos, e cremos no amor que Deus nos tem. Deus é amor; e quem está em amor está em Deus, e Deus nele." }],
+                textoFormatado: "E nós conhecemos, e cremos no amor que Deus nos tem. Deus é amor; e quem está em amor está em Deus, e Deus nele."
+            },
+            "Lamentações 3:22-23": {
+                referenciaFormatada: "Lamentações 3:22-23",
+                versao: "Almeida Corrigida Fiel (ACF 2011)",
+                versiculos: [
+                    { numero: 22, texto: "As misericórdias do Senhor são a causa de não sermos consumidos, porque as suas misericórdias não têm fim;" },
+                    { numero: 23, texto: "Novas são cada manhã; grande é a tua fidelidade." }
+                ],
+                textoFormatado: "(22) As misericórdias do Senhor são a causa de não sermos consumidos, porque as suas misericórdias não têm fim; (23) Novas são cada manhã; grande é a tua fidelidade."
+            },
+            "Tito 2:13": {
+                referenciaFormatada: "Tito 2:13",
+                versao: "Almeida Corrigida Fiel (ACF 2011)",
+                versiculos: [{ numero: 13, texto: "Aguardando a bem-aventurada esperança e o aparecimento da glória do grande Deus e nosso Salvador Jesus Cristo;" }],
+                textoFormatado: "Aguardando a bem-aventurada esperança e o aparecimento da glória do grande Deus e nosso Salvador Jesus Cristo;"
+            },
+            "Apocalipse 22:20": {
+                referenciaFormatada: "Apocalipse 22:20",
+                versao: "Almeida Corrigida Fiel (ACF 2011)",
+                versiculos: [{ numero: 20, texto: "Aquele que testifica estas coisas diz: Certamente cedo venho. Amém. Ora vem, Senhor Jesus." }],
+                textoFormatado: "Aquele que testifica estas coisas diz: Certamente cedo venho. Amém. Ora vem, Senhor Jesus."
+            },
+            "Filipenses 4:6-7": {
+                referenciaFormatada: "Filipenses 4:6-7",
+                versao: "Almeida Corrigida Fiel (ACF 2011)",
+                versiculos: [
+                    { numero: 6, texto: "Não estejais inquietos por coisa alguma; antes as vossas petições sejam em tudo conhecidas diante de Deus pela oração e súplica, com ação de graças." },
+                    { numero: 7, texto: "E a paz de Deus, que excede todo o entendimento, guardará os vossos corações e os vossos pensamentos em Cristo Jesus." }
+                ],
+                textoFormatado: "(6) Não estejais inquietos por coisa alguma; antes as vossas petições sejam em tudo conhecidas diante de Deus pela oração e súplica, com ação de graças. (7) E a paz de Deus, que excede todo o entendimento, guardará os vossos corações e os vossos pensamentos em Cristo Jesus."
+            },
+            "Atos 1:8": {
+                referenciaFormatada: "Atos 1:8",
+                versao: "Almeida Corrigida Fiel (ACF 2011)",
+                versiculos: [{ numero: 8, texto: "Mas recebereis a virtude do Espírito Santo, que há de vir sobre vós; e ser-me-eis testemunhas, tanto em Jerusalém como em toda a Judéia e Samaria, e até aos confins da terra." }],
+                textoFormatado: "Mas recebereis a virtude do Espírito Santo, que há de vir sobre vós; e ser-me-eis testemunhas, tanto em Jerusalém como em toda a Judéia e Samaria, e até aos confins da terra."
+            },
+            "João 14:16-17": {
+                referenciaFormatada: "João 14:16-17",
+                versao: "Almeida Corrigida Fiel (ACF 2011)",
+                versiculos: [
+                    { numero: 16, texto: "E eu rogarei ao Pai, e ele vos dará outro Consolador, para que fique convosco para sempre;" },
+                    { numero: 17, texto: "O Espírito de verdade, que o mundo não pode receber, porque não o vê nem o conhece; mas vós o conheceis, porque habita convosco, e estará em vós." }
+                ],
+                textoFormatado: "(16) E eu rogarei ao Pai, e ele vos dará outro Consolador, para que fique convosco para sempre; (17) O Espírito de verdade, que o mundo não pode receber, porque não o vê nem o conhece; mas vós o conheceis, porque habita convosco, e estará em vós."
+            },
+            "Salmos 100:1-5": {
+                referenciaFormatada: "Salmos 100:1-5",
+                versao: "Almeida Corrigida Fiel (ACF 2011)",
+                versiculos: [
+                    { numero: 1, texto: "Celebrai com júbilo ao Senhor, todas as terras." },
+                    { numero: 2, texto: "Servi ao Senhor com alegria; e entrai diante dele com canto." },
+                    { numero: 3, texto: "Sabei que o Senhor é Deus; foi ele que nos fez, e não nós a nós mesmos; somos povo seu e ovelhas do seu pasto." },
+                    { numero: 4, texto: "Entrai pelas portas dele com louvor, e em seus átrios com hinos; louvai-o, e bendizei o seu nome." },
+                    { numero: 5, texto: "Porque o Senhor é bom, e eterna a sua misericórdia; e a sua verdade dura de geração em geração." }
+                ],
+                textoFormatado: "(1) Celebrai com júbilo ao Senhor, todas as terras. (2) Servi ao Senhor com alegria; e entrai diante dele com canto. (3) Sabei que o Senhor é Deus; foi ele que nos fez, e não nós a nós mesmos; somos povo seu e ovelhas do seu pasto. (4) Entrai pelas portas dele com louvor, e em seus átrios com hinos; louvai-o, e bendizei o seu nome. (5) Porque o Senhor é bom, e eterna a sua misericórdia; e a sua verdade dura de geração em geração."
+            },
+            "Hebreus 13:15": {
+                referenciaFormatada: "Hebreus 13:15",
+                versao: "Almeida Corrigida Fiel (ACF 2011)",
+                versiculos: [{ numero: 15, texto: "Portanto, ofereçamos sempre por ele a Deus sacrifício de louvor, isto é, o fruto dos lábios que confessam o seu nome." }],
+                textoFormatado: "Portanto, ofereçamos sempre por ele a Deus sacrifício de louvor, isto é, o fruto dos lábios que confessam o seu nome."
+            },
+            "Hebreus 11:1": {
+                referenciaFormatada: "Hebreus 11:1",
+                versao: "Almeida Corrigida Fiel (ACF 2011)",
+                versiculos: [{ numero: 1, texto: "Ora, a fé é o firme fundamento das coisas que se esperam, e a prova das coisas que se não veem." }],
+                textoFormatado: "Ora, a fé é o firme fundamento das coisas que se esperam, e a prova das coisas que se não veem."
+            },
+            "Romanos 10:9": {
+                referenciaFormatada: "Romanos 10:9",
+                versao: "Almeida Corrigida Fiel (ACF 2011)",
+                versiculos: [{ numero: 9, texto: "A saber: Se com a tua boca confessares ao Senhor Jesus, e em teu coração creres que Deus o ressuscitou dentre os mortos, serás salvo." }],
+                textoFormatado: "A saber: Se com a tua boca confessares ao Senhor Jesus, e em teu coração creres que Deus o ressuscitou dentre os mortos, serás salvo."
+            },
+            "Colossenses 3:16": {
+                referenciaFormatada: "Colossenses 3:16",
+                versao: "Almeida Corrigida Fiel (ACF 2011)",
+                versiculos: [{ numero: 16, texto: "A palavra de Cristo habite em vós abundantemente, em toda a sabedoria, ensinando-vos e admoestando-vos uns aos outros, com salmos, hinos e cânticos espirituais, cantando ao Senhor com graça em vosso coração." }],
+                textoFormatado: "A palavra de Cristo habite em vós abundantemente, em toda a sabedoria, ensinando-vos e admoestando-vos uns aos outros, com salmos, hinos e cânticos espirituais, cantando ao Senhor com graça em vosso coração."
+            },
+            "1 Coríntios 13:4-7": {
+                referenciaFormatada: "1 Coríntios 13:4-7",
+                versao: "Almeida Corrigida Fiel (ACF 2011)",
+                versiculos: [
+                    { numero: 4, texto: "O amor é sofredor, é benigno; o amor não é invejoso; o amor não trata com leviandade, não se ensoberbece." },
+                    { numero: 5, texto: "Não se porta com indecência, não busca os seus interesses, não se irrita, não suspeita mal;" },
+                    { numero: 6, texto: "Não folga com a injustiça, mas folga com a verdade;" },
+                    { numero: 7, texto: "Tudo sofre, tudo crê, tudo espera, tudo suporta." }
+                ],
+                textoFormatado: "(4) O amor é sofredor, é benigno; o amor não é invejoso; o amor não trata com leviandade, não se ensoberbece. (5) Não se porta com indecência, não busca os seus interesses, não se irrita, não suspeita mal; (6) Não folga com a injustiça, mas folga com a verdade; (7) Tudo sofre, tudo crê, tudo espera, tudo suporta."
+            },
+            "Isaías 53:5": {
+                referenciaFormatada: "Isaías 53:5",
+                versao: "Almeida Corrigida Fiel (ACF 2011)",
+                versiculos: [{ numero: 5, texto: "Mas ele foi ferido por causa das nossas transgressões, e moído por causa das nossas iniquidades; o castigo que nos traz a paz estava sobre ele, e pelas suas pisaduras fomos sarados." }],
+                textoFormatado: "Mas ele foi ferido por causa das nossas transgressões, e moído por causa das nossas iniquidades; o castigo que nos traz a paz estava sobre ele, e pelas suas pisaduras fomos sarados."
+            },
+            "Mateus 11:28": {
+                referenciaFormatada: "Mateus 11:28",
+                versao: "Almeida Corrigida Fiel (ACF 2011)",
+                versiculos: [{ numero: 28, texto: "Vinde a mim, todos os que estais cansados e oprimidos, e eu vos aliviarei." }],
+                textoFormatado: "Vinde a mim, todos os que estais cansados e oprimidos, e eu vos aliviarei."
+            },
+            "Apocalipse 21:4": {
+                referenciaFormatada: "Apocalipse 21:4",
+                versao: "Almeida Corrigida Fiel (ACF 2011)",
+                versiculos: [{ numero: 4, texto: "E Deus limpará de seus olhos toda a lágrima; e não haverá mais morte, nem pranto, nem clamor, nem dor; porque já as primeiras coisas são passadas." }],
+                textoFormatado: "E Deus limpará de seus olhos toda a lágrima; e não haverá mais morte, nem pranto, nem clamor, nem dor; porque já as primeiras coisas são passadas."
+            }
+        };
+
+        // Função local para resolver versículos diretamente no navegador caso a API esteja inacessível
+        const resolverTextoBiblicoLocal = (ref, bibleData) => {
+            if (!bibleData || !ref) return null;
+            const limpa = ref.replace(/[()\[\]*]/g, '').trim();
+            const match = limpa.match(/^([1-3]?\s*[a-zA-ZáàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ]+)\.?\s+(\d+)(?:[.:,](\s*\d+.*))?$/i);
+            if (!match) return null;
+            const rawBook = match[1];
+            const capNum = parseInt(match[2], 10);
+            const rawVerses = match[3] ? match[3].trim() : '';
+
+            const q = rawBook.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+            let livroObj = null;
+
+            for (const b of bibleData) {
+                const bNameNorm = b.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+                const bAbbrevNorm = b.abbrev.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+                if (bNameNorm === q || bAbbrevNorm === q) { livroObj = b; break; }
+            }
+            if (!livroObj) {
+                if (q.startsWith("lament") || q === "lm" || q === "lam") livroObj = bibleData.find(b => b.abbrev === "lm");
+                else if (q.startsWith("cantar") || q === "ct" || q.startsWith("cantico")) livroObj = bibleData.find(b => b.abbrev === "ct");
+                else if (q === "sl" || q.startsWith("salm")) livroObj = bibleData.find(b => b.abbrev === "sl");
+                else if (q === "pv" || q === "pr" || q.startsWith("proverb")) livroObj = bibleData.find(b => b.abbrev === "pv");
+                else if (q === "ap" || q.startsWith("apoc") || q.startsWith("revel")) livroObj = bibleData.find(b => b.abbrev === "ap");
+            }
+            if (!livroObj) {
+                for (const b of bibleData) {
+                    const bNameNorm = b.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+                    if (bNameNorm.startsWith(q) || q.startsWith(bNameNorm)) { livroObj = b; break; }
+                }
+            }
+            if (!livroObj) return null;
+
+            const capIdx = capNum - 1;
+            const capitulo = livroObj.chapters ? livroObj.chapters[capIdx] : null;
+            if (!capitulo) return null;
+
+            const versiculos = [];
+            if (!rawVerses) {
+                capitulo.forEach((t, i) => versiculos.push({ numero: i + 1, texto: t }));
+            } else {
+                const partes = rawVerses.split(',');
+                for (const parte of partes) {
+                    const p = parte.trim();
+                    if (!p) continue;
+                    if (p.includes('-') || p.includes('–')) {
+                        const [iniStr, fimStr] = p.split(/[-–]/);
+                        const ini = parseInt(iniStr, 10);
+                        const fim = parseInt(fimStr, 10);
+                        if (!isNaN(ini) && !isNaN(fim)) {
+                            for (let v = ini; v <= fim; v++) {
+                                if (capitulo[v - 1]) versiculos.push({ numero: v, texto: capitulo[v - 1] });
+                            }
+                        }
+                    } else {
+                        const v = parseInt(p, 10);
+                        if (!isNaN(v) && capitulo[v - 1]) versiculos.push({ numero: v, texto: capitulo[v - 1] });
+                    }
+                }
+            }
+
+            if (versiculos.length === 0) return null;
+            const nomeExibicao = livroObj.name === "Lamentações de Jeremias" ? "Lamentações" : livroObj.name;
+            return {
+                referenciaOriginal: ref,
+                referenciaFormatada: `${nomeExibicao} ${capNum}:${rawVerses || "1-" + capitulo.length}`,
+                livro: nomeExibicao,
+                capitulo: capNum,
+                versao: "Almeida Corrigida Fiel (ACF 2011)",
+                versiculos,
+                textoFormatado: versiculos.map(v => (versiculos.length > 1 ? `(${v.numero}) ` : "") + v.texto).join(" ")
+            };
+        };
+
+        const renderizarConteudoBiblicoNoModal = (data, refOriginal) => {
+            const refFormatada = data.referenciaFormatada || refOriginal;
+            modalBibliaRefTexto.textContent = refFormatada;
+
+            if (data.versiculos && data.versiculos.length > 0) {
+                modalBibliaCorpo.innerHTML = data.versiculos.map(v => `
+                    <div class="versiculo-linha">
+                        <sup class="num-versiculo-sup">${v.numero}</sup>
+                        <span class="texto-versiculo">${v.texto}</span>
+                    </div>
+                `).join('');
+            } else if (data.textoFormatado) {
+                modalBibliaCorpo.innerHTML = `
+                    <div class="versiculo-linha">
+                        <span class="texto-versiculo">${data.textoFormatado}</span>
+                    </div>
+                `;
+            } else {
+                modalBibliaCorpo.innerHTML = `<p style="color: #64748b;">Texto sagrado indisponível no momento.</p>`;
+            }
+
+            textoBiblicoAtualParaCopia = `"${data.textoFormatado || ''}"\n— ${refFormatada} (Almeida Corrigida Fiel 2011)`;
+        };
+
+        const abrirPopUpTextoBiblico = async (referencia) => {
+            if (!referencia) return;
+            const refLimpa = referencia.replace(/[()\[\]*]/g, '').trim();
+
+            modalBibliaOverlay.style.display = 'flex';
+            requestAnimationFrame(() => {
+                modalBibliaOverlay.classList.add('aberto');
+            });
+            modalBibliaRefTexto.textContent = refLimpa;
+            modalBibliaCorpo.innerHTML = `
+                <div class="modal-biblia-loading">
+                    <div class="spinner-biblia"></div>
+                    <span>Consultando as Sagradas Escrituras na versão ACF 2011...</span>
+                </div>
+            `;
+
+            // 1. Verifica no cache em memória
+            if (cacheTextosBiblicos[refLimpa]) {
+                renderizarConteudoBiblicoNoModal(cacheTextosBiblicos[refLimpa], refLimpa);
+                return;
+            }
+
+            // 2. Busca na rota do servidor
+            const apiBaseUrl = window.location.hostname.includes('github.io') 
+                ? 'https://ais-pre-jthplaydc4vmoimatpcf5h-408764717527.us-east1.run.app' 
+                : '';
+
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 9000);
+
+                const res = await fetch(`${apiBaseUrl}/api/texto-biblico`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ referencia: refLimpa }),
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && (data.versiculos || data.textoFormatado)) {
+                        cacheTextosBiblicos[refLimpa] = data;
+                        renderizarConteudoBiblicoNoModal(data, refLimpa);
+                        return;
+                    }
+                }
+            } catch (err) {
+                console.warn("Servidor inacessível para versículo bíblico, acionando resolvedor cliente:", err);
+            }
+
+            // 3. Fallback inteligente: carregar base acf_2011.json no cliente
+            try {
+                if (!acfBibleDataClient && !carregandoBibliaClient) {
+                    carregandoBibliaClient = true;
+                    const resp = await fetch('./acf_2011.json');
+                    if (resp.ok) {
+                        acfBibleDataClient = await resp.json();
+                    }
+                    carregandoBibliaClient = false;
+                }
+
+                if (acfBibleDataClient) {
+                    const dadosLocais = resolverTextoBiblicoLocal(refLimpa, acfBibleDataClient);
+                    if (dadosLocais) {
+                        cacheTextosBiblicos[refLimpa] = dadosLocais;
+                        renderizarConteudoBiblicoNoModal(dadosLocais, refLimpa);
+                        return;
+                    }
+                }
+            } catch (errLocal) {
+                console.error("Erro ao carregar acf_2011.json local:", errLocal);
+            }
+
+            // Se falhou em tudo, exibe mensagem explicativa com opção de retry
+            modalBibliaCorpo.innerHTML = `
+                <div style="text-align: center; padding: 20px; color: #64748b;">
+                    <p style="font-size: 1.1rem; margin-bottom: 12px; color: #b91c1c;">⚠️ Não foi possível obter o texto bíblico de <strong>"${refLimpa}"</strong> no momento.</p>
+                    <p style="font-size: 0.95rem; margin-bottom: 20px;">Verifique sua conexão ou tente novamente.</p>
+                    <button type="button" onclick="window.abrirPopUpTextoBiblico('${refLimpa}')" style="background: #2c4a3e; color: #fff; border: none; padding: 8px 18px; border-radius: 6px; cursor: pointer; font-weight: 600;">🔄 Tentar Novamente</button>
+                </div>
+            `;
+        };
+        window.abrirPopUpTextoBiblico = abrirPopUpTextoBiblico;
+
+        const fecharPopUpTextoBiblico = () => {
+            modalBibliaOverlay.classList.remove('aberto');
+            setTimeout(() => {
+                modalBibliaOverlay.style.display = 'none';
+            }, 220);
+        };
+        window.fecharPopUpTextoBiblico = fecharPopUpTextoBiblico;
+
+        // Botões de fechar modal
+        if (btnFecharModalTopo) btnFecharModalTopo.onclick = fecharPopUpTextoBiblico;
+        if (btnFecharModalRodape) btnFecharModalRodape.onclick = fecharPopUpTextoBiblico;
+        if (modalBibliaOverlay) {
+            modalBibliaOverlay.onclick = (e) => {
+                if (e.target === modalBibliaOverlay) fecharPopUpTextoBiblico();
+            };
+        }
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && modalBibliaOverlay && modalBibliaOverlay.classList.contains('aberto')) {
+                fecharPopUpTextoBiblico();
+            }
+        });
+
+        // Botão de copiar versículo
+        if (btnModalCopiarTexto) {
+            btnModalCopiarTexto.onclick = async () => {
+                if (!textoBiblicoAtualParaCopia) return;
+                try {
+                    await navigator.clipboard.writeText(textoBiblicoAtualParaCopia);
+                    btnCopiarRotulo.textContent = 'Copiado!';
+                    btnCopiarIcone.textContent = '✅';
+                    setTimeout(() => {
+                        btnCopiarRotulo.textContent = 'Copiar Texto';
+                        btnCopiarIcone.textContent = '📋';
+                    }, 2200);
+                } catch (e) {
+                    console.error('Falha ao copiar:', e);
+                }
+            };
+        }
+
+        // Delegação de cliques para botões de referência bíblica em qualquer lugar do app
+        document.addEventListener('click', (e) => {
+            const btnRef = e.target.closest('.btn-ref-biblica');
+            if (btnRef) {
+                e.preventDefault();
+                e.stopPropagation();
+                const ref = btnRef.getAttribute('data-ref');
+                if (ref) {
+                    abrirPopUpTextoBiblico(ref);
+                }
+            }
+        });
 
         // --- EVENT LISTENERS ---
         caixaDeBusca.addEventListener('keyup', filtrarHinos);
