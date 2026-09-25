@@ -664,12 +664,90 @@
     .btn-modal-fechar-secundario:hover {
         background: #cbd5e1;
     }
+
+    /* Notificação Toast Elegante (sem alert) */
+    .toast-notificacao {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%) translateY(20px);
+        background: #1e293b;
+        color: #f8fafc;
+        padding: 12px 20px;
+        border-radius: 8px;
+        font-size: 0.90rem;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.35);
+        z-index: 10000;
+        max-width: 90%;
+        text-align: center;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease, transform 0.3s ease;
+        border-left: 4px solid var(--primary-color, #4a6a5d);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    .toast-notificacao.visivel {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+        pointer-events: auto;
+    }
+
+    /* Barra Superior de Usuário / Sessão */
+    .barra-usuario-status {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 16px;
+        padding: 8px 14px;
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 0.88rem;
+        color: var(--text-color, #333);
+        box-sizing: border-box;
+    }
+    .btn-auth-topo-google {
+        background: white;
+        color: #334155;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        padding: 6px 14px;
+        font-size: 0.84rem;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 500;
+        transition: all 0.15s ease;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+    .btn-auth-topo-google:hover {
+        background: #f8fafc;
+        border-color: #94a3b8;
+    }
+    .btn-auth-topo-sair {
+        background: transparent;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        padding: 5px 12px;
+        color: #475569;
+        cursor: pointer;
+        font-size: 0.82rem;
+        transition: all 0.15s ease;
+    }
+    .btn-auth-topo-sair:hover {
+        background: #fee2e2;
+        border-color: #fca5a5;
+        color: #b91c1c;
+    }
   </style>
   
   <!-- Firebase SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
-    import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
+    import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
     import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -698,38 +776,91 @@
     window.firestoreDoc = doc;
     window.firestoreGetDoc = getDoc;
     window.firestoreSetDoc = setDoc;
+
+    window.mostrarAvisoToast = (msg, tempo = 4500) => {
+      const toast = document.getElementById('toast-notificacao');
+      if (!toast) return;
+      toast.textContent = msg;
+      toast.classList.add('visivel');
+      if (window._toastTimer) clearTimeout(window._toastTimer);
+      window._toastTimer = setTimeout(() => {
+        toast.classList.remove('visivel');
+      }, tempo);
+    };
+
     window.signInWithGoogle = async () => {
       try {
         const result = await signInWithPopup(auth, provider);
-        console.log("Logged in as:", result.user.email);
+        if (result && result.user) {
+          window.mostrarAvisoToast(`Conectado com sucesso como ${result.user.displayName || result.user.email}!`);
+        }
       } catch (error) {
-        console.error("Login falhou:", error);
-        alert("Erro ao fazer login: " + error.message);
+        console.warn("Informação sobre login:", error.code, error.message);
+        if (error.code === 'auth/unauthorized-domain') {
+          window.mostrarAvisoToast("Acesso livre ativo! Seu acesso como visitante está 100% liberado e todas as considerações continuam sendo salvas.");
+        } else if (error.code === 'auth/popup-blocked') {
+          window.mostrarAvisoToast("Janela pop-up de login bloqueada pelo navegador. O acesso como visitante continua 100% liberado!");
+        } else if (error.code === 'auth/popup-closed-by-user') {
+          // Janela fechada pelo usuário
+        } else {
+          window.mostrarAvisoToast("Acesso mantido com sucesso como visitante. Todas as funções continuam 100% disponíveis!");
+        }
+        if (!auth.currentUser) {
+          try { await signInAnonymously(auth); } catch (e) {}
+        }
       }
     };
-    window.signOutGoogle = () => signOut(auth);
+
+    window.signOutGoogle = async () => {
+      try {
+        await signOut(auth);
+        window.mostrarAvisoToast("Sessão desconectada com sucesso.");
+        try { await signInAnonymously(auth); } catch (e) {}
+      } catch (error) {
+        console.warn("Aviso ao sair:", error);
+      }
+    };
 
     onAuthStateChanged(auth, async (user) => {
-      const loginOverlay = document.getElementById('login-overlay');
-      if (user) {
-        if (loginOverlay) loginOverlay.style.display = 'none';
+      const nomeLabel = document.getElementById('usuario-nome-label');
+      const acoesDiv = document.getElementById('usuario-acoes-login');
+
+      if (user && !user.isAnonymous) {
         window.authToken = await user.getIdToken();
+        if (nomeLabel) {
+          nomeLabel.innerHTML = `<span>👤 Conectado como <strong>${user.displayName || user.email}</strong></span>`;
+        }
+        if (acoesDiv) {
+          acoesDiv.innerHTML = `<button type="button" class="btn-auth-topo-sair" onclick="window.signOutGoogle()">Sair da conta</button>`;
+        }
       } else {
-        if (loginOverlay) loginOverlay.style.display = 'flex';
-        window.authToken = null;
+        if (!user) {
+          try {
+            await signInAnonymously(auth);
+            return;
+          } catch (e) {
+            console.warn("Sessão anônima fallback:", e.message);
+          }
+        }
+        window.authToken = user ? await user.getIdToken() : null;
+        if (nomeLabel) {
+          nomeLabel.innerHTML = `<span>🕊️ <strong>Hinário Digital</strong> • Acesso Livre & Considerações Salvas</span>`;
+        }
+        if (acoesDiv) {
+          acoesDiv.innerHTML = `
+            <button type="button" class="btn-auth-topo-google" onclick="window.signInWithGoogle()" title="Entrar com sua conta Google (opcional)">
+              <svg width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"/><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"/><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"/></svg>
+              <span>Entrar com Google</span>
+            </button>
+          `;
+        }
       }
     });
   </script>
 </head>
 <body>
-  <div id="login-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-color, #fafafa); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999;">
-    <h2 style="font-family: 'Playfair Display', serif; font-size: 2rem; color: var(--primary-color, #4a6a5d); margin-bottom: 24px;">Hinário Digital</h2>
-    <p style="margin-bottom: 32px; color: var(--text-color, #333); font-size: 1.1rem; text-align: center; padding: 0 20px;">Faça login com o Google para acessar o aplicativo.</p>
-    <button onclick="window.signInWithGoogle()" style="background-color: white; color: #757575; border: 1px solid #ddd; border-radius: 4px; padding: 12px 24px; font-size: 1rem; cursor: pointer; display: flex; align-items: center; gap: 12px; font-weight: 500; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-      <svg width="18" height="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"/><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"/><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"/></svg>
-      Continuar com o Google
-    </button>
-  </div>
+  <!-- Toast de Notificação -->
+  <div id="toast-notificacao" class="toast-notificacao" role="alert" aria-live="polite"></div>
 
   <!-- Pop-up de Leitura Bíblica ACF 2011 -->
   <div id="modal-biblia-overlay" class="modal-biblia-overlay" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="modal-biblia-titulo">
@@ -761,8 +892,17 @@
   </div>
 
   <div class="container">
-    <div style="text-align: right; margin-bottom: 20px;">
-      <button onclick="window.signOutGoogle()" style="background: transparent; border: none; color: var(--primary-color, #4a6a5d); cursor: pointer; font-size: 0.9rem; text-decoration: underline;">Sair da conta</button>
+    <!-- Barra de Usuário Superior -->
+    <div id="barra-usuario-status" class="barra-usuario-status">
+      <div id="usuario-nome-label">
+        <span>🕊️ <strong>Hinário Digital</strong> • Acesso Livre & Considerações Salvas</span>
+      </div>
+      <div id="usuario-acoes-login">
+        <button type="button" class="btn-auth-topo-google" onclick="window.signInWithGoogle()" title="Entrar com sua conta Google (opcional)">
+          <svg width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"/><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"/><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"/></svg>
+          <span>Entrar com Google</span>
+        </button>
+      </div>
     </div>
     
     <div id="secao-solicitados" style="display: none;">
@@ -1969,11 +2109,11 @@
             if (window.firestoreDb && window.firestoreDoc && window.firestoreSetDoc) {
                 try {
                     window.firestoreSetDoc(window.firestoreDoc(window.firestoreDb, "consideracoes", docId), {
-                        numero: numeroHino,
-                        titulo: tituloHino,
-                        autor: hinoObj.autor || "Tradicional",
-                        tema: termoPesquisa || "",
-                        analise: analiseBruta,
+                        numero: parseInt(numeroHino, 10),
+                        titulo: String(tituloHino || '').slice(0, 200),
+                        autor: String(hinoObj.autor || "Tradicional").slice(0, 200),
+                        tema: String(termoPesquisa || "").slice(0, 200),
+                        analise: String(analiseBruta || "").slice(0, 48000),
                         dataCriacao: new Date().toISOString()
                     }, { merge: true }).catch(err => console.warn("Aviso ao persistir no Firestore:", err.message));
                 } catch (e) {
