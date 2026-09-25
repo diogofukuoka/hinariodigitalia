@@ -1,0 +1,44 @@
+{
+  "entities": {
+    "ConsideracaoHino": {
+      "title": "Consideração Teológica do Hino",
+      "description": "Considerações e fundamentação bíblica gerada para cada hino",
+      "type": "object",
+      "properties": {
+        "numero": {
+          "type": "integer",
+          "description": "Número do hino na Harpa Cristã"
+        },
+        "titulo": {
+          "type": "string",
+          "description": "Título oficial do hino"
+        },
+        "autor": {
+          "type": "string",
+          "description": "Autor ou compositor do hino"
+        },
+        "tema": {
+          "type": "string",
+          "description": "Tema específico consultado ou vazio para análise geral"
+        },
+        "analise": {
+          "type": "string",
+          "description": "Texto em markdown da análise teológica e fundamentação bíblica"
+        },
+        "dataCriacao": {
+          "type": "string",
+          "description": "Data ISO da geração da consideração"
+        }
+      },
+      "required": ["numero", "titulo", "analise"]
+    }
+  },
+  "firestore": {
+    "/consideracoes/{consideracaoId}": {
+      "schema": {
+        "$ref": "#/entities/ConsideracaoHino"
+      },
+      "description": "Armazena as considerações teológicas salvas de cada hino para consultas instantâneas futuras"
+    }
+  }
+}

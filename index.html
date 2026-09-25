@@ -355,6 +355,19 @@
         font-weight: 600;
         margin-bottom: 14px;
     }
+    .badge-salvo-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        background-color: #f0fdf4;
+        color: #166534;
+        border: 1px solid #bbf7d0;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 0.84em;
+        font-weight: 600;
+        margin-bottom: 14px;
+    }
     .box-consideracoes-acoes {
         display: flex;
         gap: 10px;
@@ -657,6 +670,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
     import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
 
     const firebaseConfig = {
       projectId: "gen-lang-client-0930791125",
@@ -671,7 +685,19 @@
     const auth = getAuth(app);
     const provider = new GoogleAuthProvider();
 
+    let firestoreDb = null;
+    try {
+      firestoreDb = getFirestore(app, "ai-studio-hinariodigitalia-2ce1c049-d044-4ea4-a9e0-ce531a12085d");
+    } catch (e) {
+      console.warn("Firestore custom ID fallback:", e);
+      try { firestoreDb = getFirestore(app); } catch (e2) {}
+    }
+
     window.firebaseAuth = auth;
+    window.firestoreDb = firestoreDb;
+    window.firestoreDoc = doc;
+    window.firestoreGetDoc = getDoc;
+    window.firestoreSetDoc = setDoc;
     window.signInWithGoogle = async () => {
       try {
         const result = await signInWithPopup(auth, provider);
@@ -1632,118 +1658,159 @@
             return scored.filter(s => s.score > 0).slice(0, 10).map(s => s.hino);
         };
 
-        // Gerador teológico local para garantia de funcionamento em qualquer dispositivo
-        const gerarAnaliseLocal = (hino, tema) => {
-            const estrofes = (hino.conteudo || "").split('\n\n').filter(Boolean);
-            const v1 = estrofes[0] ? estrofes[0].replace(/\n/g, ' ') : hino.titulo;
-            const v2 = estrofes.length > 1 ? estrofes[1].replace(/\n/g, ' ') : '';
-            const v3 = estrofes.length > 2 ? estrofes[2].replace(/\n/g, ' ') : '';
-            const termo = (tema || '').trim();
-
-            let intro = '';
-            if (termo) {
-                intro = `### Enquadramento Teológico com "${termo}"\n\n` +
-                    `O **Hino ${hino.numero} - ${hino.titulo}** (de autoria de *${hino.autor || 'Autor Cristão'}*) aborda diretamente a essência de **"${termo}"**, apontando para a providência divina, a suficiência da graça e o consolo nas promessas eternas de Deus.`;
-            } else {
-                intro = `### Considerações Teológicas e Doutrinárias: Hino ${hino.numero}\n\n` +
-                    `O hino **"${hino.titulo}"** (composto por *${hino.autor || 'Tradicional'}*) constitui uma rica declaração de louvor, adoração e piedade cristã, fundamentada nas verdades eternas das Sagradas Escrituras.`;
-            }
-
-            let citacoes = `\n\n### Citações em Destaque da Letra\n\n` +
-                `* > "${v1}"\n`;
-            if (v2) citacoes += `* > "${v2}"\n`;
-            if (v3) citacoes += `* > "${v3}"\n`;
-
-            const letra = (hino.titulo + " " + hino.conteudo).toLowerCase();
-            let pontosReflexao = [];
-
-            if (letra.includes("sangue") || letra.includes("cruz") || letra.includes("calvário") || letra.includes("perdão") || letra.includes("redentor")) {
-                pontosReflexao.push(`**Obra Redentora e Graça:** Os versos exaltam o sacrifício de Jesus Cristo na cruz como a rocha inabalável de nossa redenção e perdão (*cf. Romanos 5:1-2; Efésios 2:8-9*).`);
-            }
-            if (letra.includes("amor") || letra.includes("misericórdia") || letra.includes("bondade") || letra.includes("graça")) {
-                pontosReflexao.push(`**Amor Insondável de Deus:** Destaca o favor divino e convida a alma a repousar no cuidado perfeito do Senhor (*cf. Lamentações 3:22-23*).`);
-            }
-            if (letra.includes("fé") || letra.includes("oração") || letra.includes("paz") || letra.includes("guia") || letra.includes("consolo")) {
-                pontosReflexao.push(`**Comunhão e Segurança na Fé:** Encoraja a perseverança da alma em constante oração e refúgio sob os cuidados do Bom Pastor (*cf. Salmos 23:1-4; Filipenses 4:6-7*).`);
-            }
-            if (letra.includes("céu") || letra.includes("glória") || letra.includes("jerusalém") || letra.includes("lar") || letra.includes("voltar") || letra.includes("breve")) {
-                pontosReflexao.push(`**Esperança e Louvor Perpétuo:** Convida a congregação a louvar com gratidão e júbilo na bendita certeza da salvação e do lar celestial (*cf. Tito 2:13; Hebreus 13:15*).`);
-            }
-            if (letra.includes("espírito") || letra.includes("fogo") || letra.includes("poder") || letra.includes("unção")) {
-                pontosReflexao.push(`**O Poder do Espírito Santo:** A letra enfatiza a presença viva e a capacitação do Consolador (*cf. Atos 1:8*).`);
-            }
-            if (letra.includes("louvor") || letra.includes("cantai") || letra.includes("aleluia") || letra.includes("adoração")) {
-                pontosReflexao.push(`**Exaltação Jubilosa:** Um chamado direto para bendizer e render graças ao nosso Criador (*cf. Salmos 100*).`);
-            }
-
-            if (pontosReflexao.length < 2) {
-                pontosReflexao.push(`**Profissão de Fé:** O cântico expressa a dependência total da revelação divina (*cf. Hebreus 11:1*).`);
-                pontosReflexao.push(`**Comunhão Diária:** Serve como um guia devocional que aponta nossa esperança sempre para Deus (*cf. Colossenses 3:16*).`);
-            }
-
-            let consideracoes = `\n### Ensinamentos Espirituais e Fundamentação Bíblica\n\n`;
-            pontosReflexao.slice(0, 4).forEach((ponto, index) => {
-                consideracoes += `${index + 1}. ${ponto}\n\n`;
-            });
-
-            return intro + citacoes + consideracoes;
-        };
-
-        // Gerador teológico local de contingência para fundamentação bíblica imediata
+        // Gerador teológico analítico de contingência baseado exclusivamente na letra real do hino
         const gerarAnaliseTeologicaLocal = (hino, tema) => {
-            const estrofes = (hino.conteudo || "").split('\n\n').filter(Boolean);
-            const v1 = estrofes[0] ? estrofes[0].replace(/\n/g, ' ') : (hino.titulo || '');
-            const v2 = estrofes.length > 1 ? estrofes[1].replace(/\n/g, ' ') : '';
-            const v3 = estrofes.length > 2 ? estrofes[2].replace(/\n/g, ' ') : '';
+            const rawConteudo = hino.conteudo || "";
+            const estrofes = rawConteudo.split('\n\n').map(s => s.trim()).filter(Boolean);
+            
+            // Extrai trechos poéticos reais do próprio hino
+            const primeirasLinhas = estrofes.map(est => {
+                const linhas = est.split('\n').map(l => l.replace(/^\d+[\.\)]\s*/, '').trim()).filter(l => l.length > 5);
+                return linhas[0] || '';
+            }).filter(Boolean);
+
+            const citacao1 = primeirasLinhas[0] || (hino.titulo || 'Hino');
+            const citacao2 = primeirasLinhas[1] || '';
             const trimmedTema = (tema || '').trim();
+            const letraLower = ((hino.titulo || '') + " " + rawConteudo).toLowerCase();
 
-            let intro = '';
+            let intro = `### Análise Teológica e Doutrinária\n\n`;
             if (trimmedTema) {
-                intro = `### Enquadramento Teológico: "${trimmedTema}"\n\n` +
-                    `O **Hino ${hino.numero} - ${hino.titulo}** (composto por *${hino.autor || 'Autor Cristão'}*) expressa com fidelidade bíblica a temática de **"${trimmedTema}"**, conduzindo a congregação à centralidade da fé cristã e à confiança inabalável nas promessas divinas.`;
+                intro += `O **Hino ${hino.numero} - "${hino.titulo}"** (autoria de *${hino.autor || 'Autor Cristão'}*) articula com especial fidelidade bíblica o tema **"${trimmedTema}"**, conduzindo o crente à comunhão e à firmeza nas promessas celestiais.\n\n`;
             } else {
-                intro = `### Análise Teológica e Doutrinária: Hino ${hino.numero}\n\n` +
-                    `O hino **"${hino.titulo}"** (autoria de *${hino.autor || 'Tradicional'}*) constitui uma rica declaração de louvor e piedade cristã, fundamentada na revelação das Sagradas Escrituras e na experiência viva da fé em Cristo.`;
+                intro += `O **Hino ${hino.numero} - "${hino.titulo}"** (composição de *${hino.autor || 'Autor Cristão'}*) expressa uma singular confissão de fé e devoção cristã, fundamentada nas Escrituras Sagradas e na experiência viva com o Redentor.\n\n`;
             }
 
-            let citacoes = `\n\n### Citações em Destaque da Letra\n\n` + `* > "${v1}"\n`;
-            if (v2) citacoes += `* > "${v2}"\n`;
-            if (v3) citacoes += `* > "${v3}"\n`;
+            intro += `Destacam-se na letra declarações líricas marcantes como > *"${citacao1}"*`;
+            if (citacao2) intro += ` e > *"${citacao2}"*`;
+            intro += `, que refletem a verdade bíblica transmitida pelo hino à congregação.\n\n`;
 
-            const letra = ((hino.titulo || '') + " " + (hino.conteudo || '')).toLowerCase();
-            let pontosReflexao = [];
+            const catalogoTemas = [
+                {
+                    chaves: ["pastor", "ovelha", "rebanho", "aprisco", "desgarrada", "guiar", "pastos"],
+                    titulo: "O Cuidado Pastoral e a Condução do Bom Pastor",
+                    explicacao: `Evoca a terna solicitude de Cristo, que busca a ovelha perdida e cuida do Seu rebanho.`,
+                    ref: "Salmos 23:1-3; Lucas 15:4-7; João 10:11"
+                },
+                {
+                    chaves: ["tempestade", "mar", "ondas", "vento", "temporal", "bonança", "barco", "naufrágio"],
+                    titulo: "Refúgio Inabalável em Meio às Tempestades",
+                    explicacao: `Retrata o descanso na soberania dAquele que aplaca a tempestade e sustenta o crente.`,
+                    ref: "Marcos 4:38-41; Salmos 107:29-30; Isaías 43:2"
+                },
+                {
+                    chaves: ["sangue", "calvário", "cruz", "resgate", "redimiu", "preço", "cordeiro", "morreu"],
+                    titulo: "A Eficácia Eterna da Expiação Substitutiva",
+                    explicacao: `Afirma o valor inestimável do sacrifício de Cristo na cruz como garantia da nossa redenção.`,
+                    ref: "1 Pedro 1:18-19; Hebreus 9:12-14; Isaías 53:5"
+                },
+                {
+                    chaves: ["volta", "nuvens", "breve", "trombeta", "arrebatar", "mansão", "céus", "glória"],
+                    titulo: "A Esperança Escatológica da Volta de Cristo",
+                    explicacao: `Desperta a Igreja para a vigilância e consolo na promessa gloriosa da volta do Senhor.`,
+                    ref: "1 Tessalonicenses 4:16-17; Tito 2:13; Apocalipse 22:20"
+                },
+                {
+                    chaves: ["cura", "ferida", "dor", "bálsamo", "enfermo", "choro", "alívio", "consolo"],
+                    titulo: "Consolação e Cura para o Coração Aflito",
+                    explicacao: `Testifica o toque curador e acolhedor de Jesus perante o sofrimento e a fraqueza humana.`,
+                    ref: "Salmos 147:3; 2 Coríntios 1:3-4; Isaías 53:4"
+                },
+                {
+                    chaves: ["água", "sede", "fonte", "manancial", "rio", "corrente", "beber"],
+                    titulo: "A Fonte Inesgotável das Águas da Vida",
+                    explicacao: `Mostra que a sede espiritual da alma encontra plena satisfação unicamente em Cristo.`,
+                    ref: "João 4:13-14; Salmos 42:1-2; Isaías 55:1"
+                },
+                {
+                    chaves: ["luz", "trevas", "escuridão", "cegueira", "olhar", "brilhar", "alvorada"],
+                    titulo: "A Luz Divina que Dissipa a Cegueira Espiritual",
+                    explicacao: `Exalta Cristo como a Luz do Mundo que dissipa as trevas e guia nossos passos.`,
+                    ref: "João 8:12; 2 Coríntios 4:6; Salmos 119:105"
+                },
+                {
+                    chaves: ["oração", "clamar", "rogar", "suplicar", "joelhos", "pedir", "falar com deus"],
+                    titulo: "O Privilégio da Oração e Comunhão com Deus",
+                    explicacao: `Estimula o hábito da oração constante, depositando aos pés do Senhor toda súplica.`,
+                    ref: "Filipenses 4:6-7; Hebreus 4:16; Tiago 5:16"
+                },
+                {
+                    chaves: ["espírito", "consolador", "fogo", "unção", "pentecostes", "poder do alto"],
+                    titulo: "O Poder e a Unção do Espírito Santo",
+                    explicacao: `Enfatiza a habitação do Consolador e a capacitação espiritual para a vida e o testemunho cristão.`,
+                    ref: "Atos 1:8; João 14:16-17; Gálatas 5:22-23"
+                },
+                {
+                    chaves: ["batalha", "combate", "guerra", "soldado", "armadura", "inimigo", "vencer", "vitória"],
+                    titulo: "A Vitória Espiritual no Bom Combate da Fé",
+                    explicacao: `Instrui o crente a vestir a armadura celestial para resistir às ciladas do adversário.`,
+                    ref: "Efésios 6:10-18; 1 Coríntios 15:57; 2 Timóteo 4:7"
+                },
+                {
+                    chaves: ["convite", "vem", "tardar", "hoje", "ouvir", "porta", "chama"],
+                    titulo: "O Chamado Amoroso da Graça e Decisão de Fé",
+                    explicacao: `Adverte com carinho sobre a importância de acolher sem demora o convite de salvação.`,
+                    ref: "Hebreus 3:15; Mateus 11:28; Apocalipse 3:20"
+                },
+                {
+                    chaves: ["perdão", "pecador", "graça", "misericórdia", "vil", "lavar", "justo"],
+                    titulo: "A Plena Justificação pela Graça de Deus",
+                    explicacao: `Recorda que o perdão dos pecados é concedido gratuitamente pelo favor imerecido do Pai.`,
+                    ref: "Romanos 3:23-24; Efésios 1:7; 1 João 1:9"
+                },
+                {
+                    chaves: ["rocha", "fundamento", "firme", "alicerce", "seguro", "inabalável"],
+                    titulo: "A Rocha Inabalável como Firme Alicerce",
+                    explicacao: `Compara a fragilidade humana com a solidez eterna da Palavra e da Pessoa de Cristo.`,
+                    ref: "1 Coríntios 3:11; Mateus 7:24-25; Salmos 18:2"
+                },
+                {
+                    chaves: ["amigo", "fiel", "leal", "abraço", "companheiro", "solidão"],
+                    titulo: "A Fidelidade e o Amor Fraterno de Jesus",
+                    explicacao: `Testemunha a presença incondicional de Jesus como o Amigo leal e Consolador eterno.`,
+                    ref: "João 15:13-15; Provérbios 18:24; Hebreus 13:5"
+                },
+                {
+                    chaves: ["louvor", "cantar", "hino", "hosana", "aleluia", "exaltai", "bendizer"],
+                    titulo: "Adoração em Espírito e Gratidão ao Criador",
+                    explicacao: `Convoca a congregação a render louvores com alegria sincera pelas maravilhas operadas por Deus.`,
+                    ref: "Salmos 145:1-3; Salmos 103:1-4; Hebreus 13:15"
+                },
+                {
+                    chaves: ["peregrino", "estrada", "caminho", "viajante", "pátria", "desterro"],
+                    titulo: "A Jornada do Peregrino rumo à Pátria Celeste",
+                    explicacao: `Sublinha a vocação do crente como peregrino cuja morada definitiva está nos céus.`,
+                    ref: "Hebreus 11:13-16; 1 Pedro 2:11; Filipenses 3:20"
+                }
+            ];
 
-            if (letra.includes("sangue") || letra.includes("cruz") || letra.includes("calvário") || letra.includes("perdão") || letra.includes("redentor")) {
-                pontosReflexao.push(`**A Obra Redentora e o Sacrifício de Cristo:** A mensagem do hino reafirma a justificação pela fé e a reconciliação do pecador com Deus mediante a cruz (*cf. Romanos 5:1-2; Efésios 2:8-9*).`);
-            }
-            if (letra.includes("amor") || letra.includes("graça") || letra.includes("misericórdia") || letra.includes("bondade")) {
-                pontosReflexao.push(`**A Graça e o Amor Insondável de Deus:** Os versos destacam o favor imerecido do Senhor, convidando os crentes a repousarem na segurança de Seu amor perfeito (*cf. 1 João 4:16; Lamentações 3:22-23*).`);
-            }
-            if (letra.includes("céu") || letra.includes("glória") || letra.includes("jerusalém") || letra.includes("lar") || letra.includes("voltar") || letra.includes("breve")) {
-                pontosReflexao.push(`**Esperança Escatológica e Glória Eterna:** Exorta a Igreja à vigilância e gratidão, contemplando a promessa da vida eterna com o Redentor (*cf. Tito 2:13; Apocalipse 22:20*).`);
-            }
-            if (letra.includes("fé") || letra.includes("oração") || letra.includes("luta") || letra.includes("paz") || letra.includes("consolo") || letra.includes("guia")) {
-                pontosReflexao.push(`**Segurança, Paz e Dependência Espiritual:** Encoraja a alma a depositar toda a ansiedade e esperança nos braços do Senhor em tempos de aflição (*cf. Salmos 23:1-4; Filipenses 4:6-7*).`);
-            }
-            if (letra.includes("espírito") || letra.includes("fogo") || letra.includes("poder") || letra.includes("unção") || letra.includes("consolador")) {
-                pontosReflexao.push(`**O Poder e a Unção do Espírito Santo:** A letra enfatiza a capacitação divina, a santificação e a presença viva do Consolador na jornada da Igreja (*cf. Atos 1:8; João 14:16-17*).`);
-            }
-            if (letra.includes("louvor") || letra.includes("cantai") || letra.includes("glória") || letra.includes("aleluia") || letra.includes("adoração")) {
-                pontosReflexao.push(`**Exaltação e Serviço Jubiloso:** O hino é um chamado direto para bendizer e render graças ao Deus Soberano por Seus grandes feitos (*cf. Salmos 100:1-5; Hebreus 13:15*).`);
+            const temasClassificados = catalogoTemas.map(t => {
+                let score = 0;
+                for (const k of t.chaves) {
+                    const regex = new RegExp(`\\b${k}`, "gi");
+                    const matches = letraLower.match(regex);
+                    if (matches) score += matches.length * 2;
+                }
+                return { tema: t, score };
+            }).filter(item => item.score > 0)
+              .sort((a, b) => b.score - a.score);
+
+            let selecionados = temasClassificados.slice(0, 4).map(item => item.tema);
+            if (selecionados.length < 3) {
+                const backups = catalogoTemas.filter(t => !selecionados.includes(t));
+                while (selecionados.length < 3 && backups.length > 0) {
+                    selecionados.push(backups.shift());
+                }
             }
 
-            if (pontosReflexao.length < 2) {
-                pontosReflexao.push(`**Fundamento da Fé e Confissão Cristã:** Este cântico atua como uma profissão de fé, onde o crente expressa sua total dependência da revelação divina (*cf. Hebreus 11:1; Romanos 10:9*).`);
-                pontosReflexao.push(`**Comunhão e Vida Diária:** O hino serve de bússola para o devocional diário, fortalecendo a alma e apontando sempre para a direção celestial (*cf. Colossenses 3:16*).`);
-            }
-
-            let reflexao = `\n### Ensinamentos Espirituais e Fundamentação Bíblica\n\n`;
-            pontosReflexao.slice(0, 4).forEach((ponto, index) => {
-                reflexao += `${index + 1}. ${ponto}\n\n`;
+            let ensinamentos = `### Ensinamentos Espirituais e Fundamentação Bíblica\n\n`;
+            selecionados.forEach((item, idx) => {
+                ensinamentos += `${idx + 1}. **${item.titulo}:** ${item.explicacao} (*cf. ${item.ref}*).\n\n`;
             });
 
-            return intro + citacoes + reflexao;
+            return intro + ensinamentos;
         };
+        const gerarAnaliseLocal = gerarAnaliseTeologicaLocal;
 
         const carregarEExibirConsideracoes = async (numeroHino, tema, boxElement, btnElement, contexto = 'indice') => {
             const isAberto = boxElement.style.display !== 'none';
@@ -1760,7 +1827,8 @@
             btnElement.innerHTML = '<span class="icon-spark">✕</span> Fechar';
 
             const termoPesquisa = (tema || '').trim();
-            const cacheKey = `${numeroHino}_${termoPesquisa}`;
+            const cacheKey = `${numeroHino}_${termoPesquisa.toLowerCase()}`;
+            const storageKey = `consideracao_hino_${cacheKey}`;
 
             const renderConteudo = (conteudoHtml) => {
                 boxElement.innerHTML = conteudoHtml;
@@ -1778,9 +1846,22 @@
                 }
             };
 
+            // 1. Verifica no cache em memória
             if (cacheConsideracoes[cacheKey]) {
                 renderConteudo(cacheConsideracoes[cacheKey]);
                 return;
+            }
+
+            // 2. Verifica no armazenamento persistente local do navegador (localStorage)
+            try {
+                const salvoLocal = localStorage.getItem(storageKey);
+                if (salvoLocal) {
+                    cacheConsideracoes[cacheKey] = salvoLocal;
+                    renderConteudo(salvoLocal);
+                    return;
+                }
+            } catch (e) {
+                console.warn("Aviso ao ler localStorage:", e);
             }
 
             const hinoObj = hinosData.find(h => h.numero === numeroHino) || { numero: numeroHino, titulo: `Hino ${numeroHino}` };
@@ -1788,48 +1869,68 @@
             
             boxElement.innerHTML = `
                 <div class="box-consideracoes-loading">
-                    <span>✨ Consultando a IA para gerar a análise teológica completa do Hino ${numeroHino} (${tituloHino})...</span>
+                    <span>✨ Lendo atentamente a letra do Hino ${numeroHino} (${tituloHino}) e gerando considerações teológicas exclusivas...</span>
                 </div>
             `;
 
             let analiseBruta = '';
             
-            // Suporte para GitHub Pages (quando rodando como site estático, aponta para o backend do AI Studio)
-            const apiBaseUrl = window.location.hostname.includes('github.io') 
-                ? 'https://ais-pre-jthplaydc4vmoimatpcf5h-408764717527.us-east1.run.app' 
-                : '';
-
-            try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 25000);
-                
-                let currentToken = '';
-                if (window.firebaseAuth && window.firebaseAuth.currentUser) {
-                    currentToken = await window.firebaseAuth.currentUser.getIdToken();
-                }
-
-                const response = await fetch(`${apiBaseUrl}/api/analisar-hino`, {
-                    method: 'POST',
-                    headers: { 
-                      'Content-Type': 'application/json',
-                      'Authorization': 'Bearer ' + currentToken
-                    },
-                    body: JSON.stringify({ numero: numeroHino, tema: termoPesquisa }),
-                    signal: controller.signal
-                });
-                clearTimeout(timeoutId);
-
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data && data.analise) {
-                        analiseBruta = data.analise;
+            // 3. Verifica no Firestore se já foi salvo anteriormente
+            const docId = `hino_${numeroHino}${termoPesquisa ? '_' + encodeURIComponent(termoPesquisa) : ''}`.replace(/[^a-zA-Z0-9_\-]/g, '_').slice(0, 60);
+            if (window.firestoreDb && window.firestoreDoc && window.firestoreGetDoc) {
+                try {
+                    const snap = await window.firestoreGetDoc(window.firestoreDoc(window.firestoreDb, "consideracoes", docId));
+                    if (snap && snap.exists()) {
+                        const dataFirestore = snap.data();
+                        if (dataFirestore && dataFirestore.analise) {
+                            analiseBruta = dataFirestore.analise;
+                        }
                     }
+                } catch (fsErr) {
+                    console.warn("Consulta Firestore:", fsErr.message);
                 }
-            } catch (err) {
-                console.warn("Consulta à API no servidor falhou ou timeout, usando gerador teológico interno:", err);
             }
 
-            // Se a API não respondeu a tempo ou falhou, usa a fundamentação teológica e bíblica local
+            // 4. Se ainda não encontrado, consulta a API no servidor (que verifica consideracoes_salvas.json e gera com IA se novo)
+            if (!analiseBruta) {
+                const apiBaseUrl = window.location.hostname.includes('github.io') 
+                    ? 'https://ais-pre-jthplaydc4vmoimatpcf5h-408764717527.us-east1.run.app' 
+                    : '';
+
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 35000);
+                    
+                    let currentToken = '';
+                    if (window.firebaseAuth && window.firebaseAuth.currentUser) {
+                        currentToken = await window.firebaseAuth.currentUser.getIdToken();
+                    }
+
+                    const headers = { 'Content-Type': 'application/json' };
+                    if (currentToken) {
+                        headers['Authorization'] = 'Bearer ' + currentToken;
+                    }
+
+                    const response = await fetch(`${apiBaseUrl}/api/analisar-hino`, {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify({ numero: numeroHino, tema: termoPesquisa }),
+                        signal: controller.signal
+                    });
+                    clearTimeout(timeoutId);
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data && data.analise) {
+                            analiseBruta = data.analise;
+                        }
+                    }
+                } catch (err) {
+                    console.warn("Consulta à API no servidor falhou ou timeout, usando gerador teológico interno:", err);
+                }
+            }
+
+            // 5. Se a API e o banco não responderem a tempo, usa a fundamentação teológica e bíblica local
             if (!analiseBruta) {
                 analiseBruta = gerarAnaliseTeologicaLocal(hinoObj, termoPesquisa);
             }
@@ -1838,9 +1939,14 @@
             const badgeHtml = termoPesquisa 
                 ? `<span class="badge-tema-analisado">🔎 Assunto pesquisado: "${termoPesquisa}"</span>` 
                 : `<span class="badge-tema-analisado">🕊️ Considerações Teológicas e Doutrinárias</span>`;
+            
+            const badgeSalvoHtml = `<span class="badge-salvo-status" title="Esta consideração fica salva para consultas instantâneas futuras">💾 Consideração salva para consultas futuras</span>`;
 
             const conteudoFinal = `
-                ${badgeHtml}
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
+                    ${badgeHtml}
+                    ${badgeSalvoHtml}
+                </div>
                 <div class="box-consideracoes-conteudo">
                     ${analiseHtml}
                 </div>
@@ -1851,6 +1957,30 @@
             `;
 
             cacheConsideracoes[cacheKey] = conteudoFinal;
+
+            // Salva no localStorage para acesso offline imediato futuro
+            try {
+                localStorage.setItem(storageKey, conteudoFinal);
+            } catch (e) {
+                console.warn("Aviso ao salvar no localStorage:", e);
+            }
+
+            // Salva de forma permanente no Firestore de forma assíncrona
+            if (window.firestoreDb && window.firestoreDoc && window.firestoreSetDoc) {
+                try {
+                    window.firestoreSetDoc(window.firestoreDoc(window.firestoreDb, "consideracoes", docId), {
+                        numero: numeroHino,
+                        titulo: tituloHino,
+                        autor: hinoObj.autor || "Tradicional",
+                        tema: termoPesquisa || "",
+                        analise: analiseBruta,
+                        dataCriacao: new Date().toISOString()
+                    }, { merge: true }).catch(err => console.warn("Aviso ao persistir no Firestore:", err.message));
+                } catch (e) {
+                    console.warn("Erro ao iniciar persistência no Firestore:", e);
+                }
+            }
+
             renderConteudo(conteudoFinal);
         };
         window.carregarEExibirConsideracoes = carregarEExibirConsideracoes;

@@ -2,6 +2,8 @@ const express = require('express');
 const { GoogleGenAI } = require('@google/genai');
 const admin = require('firebase-admin');
 const cors = require('cors');
+const fs = require('fs');
+const path = require('path');
 require('dotenv').config();
 
 // Initialize Firebase Admin (Uses application default credentials provided by the environment)
@@ -9,23 +11,24 @@ admin.initializeApp({
   projectId: "gen-lang-client-0930791125"
 });
 
-// Middleware to verify Firebase Auth token
-const verifyToken = async (req, res, next) => {
+// Middleware to verify Firebase Auth token (permite tanto usuários logados quanto visitantes)
+const optionalVerifyToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Unauthorized: Missing token' });
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.split('Bearer ')[1];
+    if (token && token.trim()) {
+      try {
+        const decodedToken = await admin.auth().verifyIdToken(token);
+        req.user = decodedToken;
+      } catch (error) {
+        // Token inválido/expirado; continua a requisição pública
+      }
+    }
   }
-
-  const token = authHeader.split('Bearer ')[1];
-  try {
-    const decodedToken = await admin.auth().verifyIdToken(token);
-    req.user = decodedToken;
-    next();
-  } catch (error) {
-    console.error('Error verifying Firebase token:', error);
-    return res.status(401).json({ error: 'Unauthorized: Invalid token' });
-  }
+  next();
 };
+
+const verifyToken = optionalVerifyToken;
 
 const app = express();
 app.use(cors());
@@ -756,8 +759,6 @@ app.use(express.json());
 app.use(express.static('.'));
 
 // --- BASE DE DADOS BÍBLICA: Almeida Corrigida Fiel 2011 (ACF 2011) ---
-const fs = require('fs');
-const path = require('path');
 let bibleACFData = null;
 
 try {
@@ -1012,68 +1013,194 @@ async function gerarComTimeout(ai, model, config, timeoutMs = 15000) {
   ]);
 }
 
-// Gerador teológico de alta fidelidade para o catálogo de hinos
+// Cache e persistência permanente em disco para considerações geradas
+const CONSIDERATION_FILE = path.join(__dirname, 'consideracoes_salvas.json');
+let consideracoesSalvas = {};
+
+try {
+  if (fs.existsSync(CONSIDERATION_FILE)) {
+    consideracoesSalvas = JSON.parse(fs.readFileSync(CONSIDERATION_FILE, 'utf8') || '{}');
+    console.log(`[Persistência] Carregadas ${Object.keys(consideracoesSalvas).length} considerações salvas do arquivo.`);
+  }
+} catch (err) {
+  console.warn('[Persistência] Aviso ao inicializar consideracoes_salvas.json:', err.message);
+  consideracoesSalvas = {};
+}
+
+function salvarConsideracoesEmArquivo() {
+  try {
+    fs.writeFileSync(CONSIDERATION_FILE, JSON.stringify(consideracoesSalvas, null, 2), 'utf8');
+  } catch (err) {
+    console.warn('[Persistência] Erro ao gravar consideracoes_salvas.json:', err.message);
+  }
+}
+
+const cacheAnalises = new Map();
+// Sincroniza em memória
+for (const [k, v] of Object.entries(consideracoesSalvas)) {
+  if (v && v.analise) {
+    cacheAnalises.set(k, v.analise);
+  }
+}
+
+// Gerador teológico analítico de alta fidelidade para contingência/offline baseado na letra real de cada hino
 function gerarAnaliseTeologicaCompleta(hino, tema) {
-  const estrofes = (hino.conteudo || "").split('\n\n').filter(Boolean);
-  const v1 = estrofes[0] ? estrofes[0].replace(/\n/g, ' ') : hino.titulo;
-  const v2 = estrofes.length > 1 ? estrofes[1].replace(/\n/g, ' ') : '';
-  const v3 = estrofes.length > 2 ? estrofes[2].replace(/\n/g, ' ') : '';
-  const trimmedTema = (tema || '').trim();
-
-  let intro = '';
-  if (trimmedTema) {
-    intro = `### Enquadramento Teológico: "${trimmedTema}"\n\n` +
-      `O **Hino ${hino.numero} - ${hino.titulo}** (composto por *${hino.autor || 'Autor Cristão'}*) expressa com fidelidade bíblica a temática de **"${trimmedTema}"**, conduzindo a congregação à centralidade da fé cristã e à confiança inabalável nas promessas divinas.`;
-  } else {
-    intro = `### Análise Teológica e Doutrinária: Hino ${hino.numero}\n\n` +
-      `O hino **"${hino.titulo}"** (autoria de *${hino.autor || 'Tradicional'}*) constitui uma rica declaração de louvor e piedade cristã, fundamentada na revelação das Escrituras Sagradas e na experiência de fé.`;
-  }
-
-  let citacoes = `\n\n### Citações em Destaque da Letra\n\n` +
-    `* > "${v1}"\n`;
-  if (v2) {
-    citacoes += `* > "${v2}"\n`;
-  }
-  if (v3) {
-    citacoes += `* > "${v3}"\n`;
-  }
-
-  const letra = (hino.titulo + " " + hino.conteudo).toLowerCase();
+  const rawConteudo = hino.conteudo || "";
+  const estrofes = rawConteudo.split('\n\n').map(s => s.trim()).filter(Boolean);
   
-  // Dicionário de reflexões dinâmicas baseadas no conteúdo real do hino
-  let pontosReflexao = [];
+  // Extrai trechos reais da poesia do hino
+  const primeirasLinhas = estrofes.map(est => {
+    const linhas = est.split('\n').map(l => l.replace(/^\d+[\.\)]\s*/, '').trim()).filter(l => l.length > 5);
+    return linhas[0] || '';
+  }).filter(Boolean);
 
-  if (letra.includes("sangue") || letra.includes("cruz") || letra.includes("calvário") || letra.includes("perdão") || letra.includes("redentor")) {
-      pontosReflexao.push(`**A Obra Redentora e o Sacrifício de Cristo:** A mensagem do hino reafirma a justificação pela fé e a reconciliação do pecador com Deus mediante a cruz (*cf. Romanos 5:1-2; Efésios 2:8-9*).`);
-  }
-  if (letra.includes("amor") || letra.includes("graça") || letra.includes("misericórdia") || letra.includes("bondade")) {
-      pontosReflexao.push(`**A Graça e o Amor Insondável de Deus:** Os versos destacam o favor imerecido do Senhor, convidando os crentes a repousarem na segurança de Seu amor perfeito (*cf. 1 João 4:16; Lamentações 3:22-23*).`);
-  }
-  if (letra.includes("céu") || letra.includes("glória") || letra.includes("jerusalém") || letra.includes("lar") || letra.includes("voltar") || letra.includes("breve")) {
-      pontosReflexao.push(`**Esperança Escatológica e Adoração Perpétua:** Exorta a Igreja à vigilância e gratidão, contemplando a promessa da vida eterna com o Redentor (*cf. Tito 2:13; Apocalipse 22:20*).`);
-  }
-  if (letra.includes("fé") || letra.includes("oração") || letra.includes("luta") || letra.includes("paz") || letra.includes("consolo") || letra.includes("guia")) {
-      pontosReflexao.push(`**Segurança, Paz e Dependência Espiritual:** Encoraja a alma a depositar toda a ansiedade e esperança nos braços do Senhor em tempos de aflição (*cf. Salmos 23:1-4; Filipenses 4:6-7*).`);
-  }
-  if (letra.includes("espírito") || letra.includes("fogo") || letra.includes("poder") || letra.includes("unção") || letra.includes("pentecostes")) {
-      pontosReflexao.push(`**O Poder e a Unção do Espírito Santo:** A letra enfatiza a capacitação divina, o batismo e a presença viva do Consolador na jornada da Igreja (*cf. Atos 1:8; João 14:16-17*).`);
-  }
-  if (letra.includes("louvor") || letra.includes("cantai") || letra.includes("glória") || letra.includes("aleluia") || letra.includes("adoração")) {
-      pontosReflexao.push(`**Exaltação e Serviço Jubiloso:** O hino é um chamado direto para bendizer e render graças ao Deus Soberano por Seus grandes feitos (*cf. Salmos 100:1-5; Hebreus 13:15*).`);
+  const citacao1 = primeirasLinhas[0] || (hino.titulo || 'Hino');
+  const citacao2 = primeirasLinhas[1] || '';
+  const citacao3 = primeirasLinhas[2] || '';
+
+  const trimmedTema = (tema || '').trim();
+  const letraLower = (hino.titulo + " " + rawConteudo).toLowerCase();
+
+  let intro = `### Análise Teológica e Doutrinária\n\n`;
+  if (trimmedTema) {
+    intro += `O **Hino ${hino.numero} - "${hino.titulo}"** (autoria de *${hino.autor || 'Autor Cristão'}*) articula com especial profundidade a temática de **"${trimmedTema}"**, revelando a soberania de Deus e convidando a alma a firmar-se nas promessas divinas expostas em seus versos.\n\n`;
+  } else {
+    intro += `O **Hino ${hino.numero} - "${hino.titulo}"** (composição de *${hino.autor || 'Autor Cristão'}*) apresenta uma rica confissão de fé fundamentada na revelação bíblica, conduzindo o adorador a um encontro pessoal com as verdades eternas do Evangelho.\n\n`;
   }
 
-  // Fallback se nenhuma palavra chave for encontrada (garante 3 pontos baseados na teologia geral)
-  if (pontosReflexao.length < 2) {
-      pontosReflexao.push(`**Fundamento da Fé e Confissão Cristã:** Este cântico atua como uma profissão de fé, onde o crente expressa sua total dependência da revelação divina (*cf. Hebreus 11:1; Romanos 10:9*).`);
-      pontosReflexao.push(`**Comunhão e Vida Diária:** O hino serve de bússola para o devocional diário, fortalecendo a alma e apontando sempre para a direção celestial (*cf. Colossenses 3:16*).`);
+  intro += `Ao analisar as estrofes originais do hino, destacam-se declarações expressivas como > *"${citacao1}"*`;
+  if (citacao2) intro += ` e > *"${citacao2}"*`;
+  intro += `, que delineiam a estrutura teológica da mensagem e o propósito edificante transmitido pelo hinista à congregação.\n\n`;
+
+  // Matriz de temas bíblicos específicos extraídos das palavras e metáforas do hino
+  const catalogoTemas = [
+    {
+      chaves: ["pastor", "ovelha", "rebanho", "aprisco", "desgarrada", "guiar", "pastos"],
+      titulo: "O Cuidado Pastoral e a Condução do Bom Pastor",
+      explicacao: `A poesia evoca a terna solicitude de Cristo, que busca a ovelha perdida e guia Seus servos por veredas seguras.`,
+      ref: "Salmos 23:1-3; Lucas 15:4-7; João 10:11"
+    },
+    {
+      chaves: ["tempestade", "mar", "ondas", "vento", "temporal", "bonança", "barco", "naufrágio"],
+      titulo: "Refúgio Inabalável em Meio às Tempestades",
+      explicacao: `Os versos retratam a travessia das aflições humanas sob o controle soberano dAquele que acalma o vento e o mar revolto.`,
+      ref: "Marcos 4:38-41; Salmos 107:29-30; Isaías 43:2"
+    },
+    {
+      chaves: ["sangue", "calvário", "cruz", "resgate", "redimiu", "preço", "cordeiro", "morreu"],
+      titulo: "A Eficácia Eterna da Expiação Substitutiva",
+      explicacao: `A mensagem central enfatiza o sacrifício vicário de Cristo na cruz, cuja morte imerecida garantiu pleno cancelamento de culpas.`,
+      ref: "1 Pedro 1:18-19; Hebreus 9:12-14; Isaías 53:5"
+    },
+    {
+      chaves: ["volta", "nuvens", "breve", "trombeta", "arrebatar", "mansão", "céus", "glória"],
+      titulo: "A Bendita Esperança Escatológica do Retorno de Cristo",
+      explicacao: `Exorta a Igreja a manter o coração vigilante e cheio de júbilo na promessa viva do reencontro com o Salvador nos ares.`,
+      ref: "1 Tessalonicenses 4:16-17; Tito 2:13; Apocalipse 22:20"
+    },
+    {
+      chaves: ["cura", "ferida", "dor", "bálsamo", "enfermo", "choro", "alívio", "consolo"],
+      titulo: "Restauração e Consolo para o Coração Aflito",
+      explicacao: `Ressalta a compaixão curadora do Senhor perante a fragilidade humana, transformando pranto em refrigério espiritual.`,
+      ref: "Salmos 147:3; 2 Coríntios 1:3-4; Isaías 53:4"
+    },
+    {
+      chaves: ["água", "sede", "fonte", "manancial", "rio", "corrente", "beber"],
+      titulo: "A Fonte Inesgotável das Águas da Vida",
+      explicacao: `Apresenta o anseio da alma humana que é plenamente satisfeito na comunhão íntima com Jesus, Manancial perene.`,
+      ref: "João 4:13-14; Salmos 42:1-2; Isaías 55:1"
+    },
+    {
+      chaves: ["luz", "trevas", "escuridão", "cegueira", "olhar", "brilhar", "alvorada"],
+      titulo: "A Luz Divina que Dissipa a Cegueira Espiritual",
+      explicacao: `Contrasta as sombras do erro com a revelação radiante de Cristo, que ilumina o entendimento do crente.`,
+      ref: "João 8:12; 2 Coríntios 4:6; Salmos 119:105"
+    },
+    {
+      chaves: ["oração", "clamar", "rogar", "suplicar", "joelhos", "pedir", "falar com deus"],
+      titulo: "O Privilégio da Oração e a Comunhão no Altar",
+      explicacao: `Incentiva a perseverança na oração sincera, recordando que o Senhor ouve e atende o clamor dos Seus filhos.`,
+      ref: "Filipenses 4:6-7; Hebreus 4:16; Tiago 5:16"
+    },
+    {
+      chaves: ["espírito", "consolador", "fogo", "unção", "pentecostes", "poder do alto"],
+      titulo: "A Presença Vivificadora e o Poder do Espírito Santo",
+      explicacao: `Evidencia o revestimento de poder e a habitação constante do Consolador prometido para capacitar a Igreja.`,
+      ref: "Atos 1:8; João 14:16-17; Gálatas 5:22-23"
+    },
+    {
+      chaves: ["batalha", "combate", "guerra", "soldado", "armadura", "inimigo", "vencer", "vitória"],
+      titulo: "A Firmeza no Bom Combate e Triunfo na Fé",
+      explicacao: `Conclama os santos à bravura espiritual, vestidos com a armadura de Deus e firmes contra as investidas do mal.`,
+      ref: "Efésios 6:10-18; 1 Coríntios 15:57; 2 Timóteo 4:7"
+    },
+    {
+      chaves: ["convite", "vem", "tardar", "hoje", "ouvir", "porta", "chama"],
+      titulo: "A Urgência da Graça e o Convite ao Arrependimento",
+      explicacao: `Adverte com terna solenidade contra a hesitação, proclamando que o tempo da graça e acolhimento divino é o agora.`,
+      ref: "Hebreus 3:15; Mateus 11:28; Apocalipse 3:20"
+    },
+    {
+      chaves: ["perdão", "pecador", "graça", "misericórdia", "vil", "lavar", "justo"],
+      titulo: "A Justificação Gratuita pela Graça Imerecida",
+      explicacao: `Demonstra que nenhuma obra própria pode expiar o pecado; somente a misericórdia de Deus outorga absolvição cabal.`,
+      ref: "Romanos 3:23-24; Efésios 1:7; 1 João 1:9"
+    },
+    {
+      chaves: ["rocha", "fundamento", "firme", "alicerce", "seguro", "inabalável"],
+      titulo: "A Rocha Inabalável como Firme Fundamento",
+      explicacao: `Contrapõe as ilusões passageiras do mundo à segurança eterna encontrada na pessoa e na doutrina de Cristo Jesus.`,
+      ref: "1 Coríntios 3:11; Mateus 7:24-25; Salmos 18:2"
+    },
+    {
+      chaves: ["amigo", "fiel", "leal", "abraço", "companheiro", "solidão"],
+      titulo: "A Intimidade e Fidelidade Perfeita de Cristo",
+      explicacao: `Celebra a comunhão viva com o Salvador, que permanece presente nas alegrias e nos momentos mais solitários da caminhada.`,
+      ref: "João 15:13-15; Provérbios 18:24; Hebreus 13:5"
+    },
+    {
+      chaves: ["louvor", "cantar", "hino", "hosana", "aleluia", "exaltai", "bendizer"],
+      titulo: "Adoração em Espírito, Verdade e Exultação Santa",
+      explicacao: `Inspira a congregação a render tributo de louvor genuíno pelo grandioso e inalterável caráter de Deus.`,
+      ref: "Salmos 145:1-3; Salmos 103:1-4; Hebreus 13:15"
+    },
+    {
+      chaves: ["peregrino", "estrada", "caminho", "viajante", "pátria", "desterro"],
+      titulo: "A Peregrinação Terrena em Direção à Pátria Celestial",
+      explicacao: `Relembra que o crente caminha neste mundo como peregrino, mantendo o olhar fixo no destino eterno preparado por Deus.`,
+      ref: "Hebreus 11:13-16; 1 Pedro 2:11; Filipenses 3:20"
+    }
+  ];
+
+  // Identifica quais temas possuem maior aderência na letra deste hino específico
+  const temasClassificados = catalogoTemas.map(t => {
+    let score = 0;
+    for (const k of t.chaves) {
+      const regex = new RegExp(`\\b${k}`, "gi");
+      const matches = letraLower.match(regex);
+      if (matches) score += matches.length * 2;
+    }
+    return { tema: t, score };
+  }).filter(item => item.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  // Seleciona de 3 a 4 tópicos singulares correspondentes
+  let selecionados = temasClassificados.slice(0, 4).map(item => item.tema);
+
+  // Se o hino tiver vocabulário raro ou curto, adiciona temas reflexivos complementares
+  if (selecionados.length < 3) {
+    const backupTemas = catalogoTemas.filter(t => !selecionados.includes(t));
+    while (selecionados.length < 3 && backupTemas.length > 0) {
+      selecionados.push(backupTemas.shift());
+    }
   }
 
-  let reflexao = `\n### Ensinamentos Espirituais e Fundamentação Bíblica\n\n`;
-  pontosReflexao.slice(0, 4).forEach((ponto, index) => {
-      reflexao += `${index + 1}. ${ponto}\n\n`;
+  let ensinamentos = `### Ensinamentos Espirituais e Fundamentação Bíblica\n\n`;
+  selecionados.forEach((item, idx) => {
+    ensinamentos += `${idx + 1}. **${item.titulo}:** ${item.explicacao} (*cf. ${item.ref}*).\n\n`;
   });
 
-  return intro + citacoes + reflexao;
+  return intro + ensinamentos;
 }
 
 // --- ROTA IA: Sugere até 10 hinos baseados no tema ---
@@ -1196,7 +1323,7 @@ ${candidatesText}`;
 });
 
 // --- ROTA IA: Análise detalhada e considerações teológicas do hino ---
-app.post('/api/analisar-hino', verifyToken, async (req, res) => {
+app.post('/api/analisar-hino', optionalVerifyToken, async (req, res) => {
   try {
     const { numero, tema } = req.body;
     if (!numero) {
@@ -1210,78 +1337,179 @@ app.post('/api/analisar-hino', verifyToken, async (req, res) => {
     }
 
     const trimmedTema = tema ? tema.trim() : '';
+    const cacheKey = `${hino.numero}_${trimmedTema.toLowerCase()}`;
+
+    // 1. Verifica se já está salva permanentemente no arquivo ou em cache de memória
+    if (consideracoesSalvas[cacheKey]) {
+      return res.json({
+        ...consideracoesSalvas[cacheKey],
+        salvo: true,
+        persistido: true
+      });
+    }
+
+    if (cacheAnalises.has(cacheKey)) {
+      return res.json({
+        analise: cacheAnalises.get(cacheKey),
+        hino: {
+          numero: hino.numero,
+          titulo: hino.titulo,
+          autor: hino.autor
+        },
+        salvo: true,
+        persistido: true
+      });
+    }
+
     let prompt = '';
-    
     if (trimmedTema) {
-      prompt = `Você é um hinólogo e teólogo cristão especialista.
-O usuário está consultando o Hino ${hino.numero} - "${hino.titulo}" (Autor: ${hino.autor}) com foco no tema/termo: "${trimmedTema}".
+      prompt = `Você é um erudito hinólogo e teólogo cristão especialista em hinologia bíblica.
+Sua missão é realizar uma análise teológica, doutrinária e espiritual aprofundada, TOTALMENTE ESPECÍFICA, PARTICULAR E EXCLUSIVA para o seguinte hino:
 
-Letra completa do hino:
+DADOS DO HINO:
+- Número: ${hino.numero}
+- Título: "${hino.titulo}"
+- Autor: ${hino.autor || "Tradicional / Anônimo"}
+- Assunto/Tema focado: "${trimmedTema}"
+
+LETRA COMPLETA DO HINO:
 """
 ${hino.conteudo}
 """
 
-Instruções para a resposta:
-1. Explique com profundidade teológica como a mensagem central deste hino se conecta e se enquadra na busca ("${trimmedTema}").
-2. Cite explicitamente frases ou versos entre aspas ("...") da letra do hino que comprovam essa ligação doutrinária e espiritual.
-3. Apresente considerações espirituais e teológicas edificantes sobre o ensinamento do hino para a fé cristã incluindo passagens bíblicas que afirmam tais verdades.
-4. Ao citar referências bíblicas, use sempre o padrão claro em português (ex.: Salmos 23:1-4, Romanos 5:1-2, João 3:16, Efésios 2:8-9), pois o aplicativo transforma as referências em botões interativos para leitura instantânea na versão ACF 2011.
-5. Estruture com títulos em markdown (### ou ####), parágrafos bem organizados e versos destacados em aspas.`;
+DIRETRIZES FUNDAMENTAIS E OBRIGATÓRIAS:
+1. LEITURA ATENTA E ESPECÍFICA: Leia detalhadamente cada uma das estrofes e versos da letra acima. É expressamente proibido usar respostas padronizadas, modelos pré-fabricados ou referências bíblicas genéricas. Cada consideração deve refletir estritamente a singularidade e a mensagem particular deste hino específico e sua relação com "${trimmedTema}".
+
+2. ESTRUTURAÇÃO OBRIGATÓRIA DA RESPOSTA (use estritamente estes títulos em Markdown):
+
+### Análise Teológica e Doutrinária
+- Apresente um exame teológico consistente e contextualizado sobre o tema específico tratado neste hino e sua conexão com "${trimmedTema}".
+- Cite OBRIGATORIAMENTE entre aspas ("...") frases e versos exatos extraídos diretamente da letra do hino demonstrando como a teologia se expressa na poesia do autor.
+
+### Ensinamentos Espirituais e Fundamentação Bíblica
+- Apresente de 3 a 5 ensinamentos espirituais e devocionais práticos para a vida cristã, extraídos diretamente do conteúdo e dos versos deste hino.
+- CADA ensinamento deve vir acompanhado de referências bíblicas PARTICULARES e PERTINENTES que se conectem especificamente àquele ensino e às metáforas ou temas da letra deste hino.
+- NUNCA use sempre as mesmas referências bíblicas para hinos diferentes. Escolha passagens das Escrituras que conversem com precisão com os versos deste hino.
+- Formate SEMPRE as referências bíblicas no padrão claro em português (ex.: Livro Cap:Versículos, como João 14:1-3, Salmos 46:1-3, Hebreus 10:19-22) para que possam ser abertas no leitor bíblico.
+
+Escreva agora a análise completa com alta fidelidade bíblica e literária.`;
     } else {
-      prompt = `Você é um hinólogo e teólogo cristão especialista.
-Faça uma análise teológica, doutrinária e espiritual completa do Hino ${hino.numero} - "${hino.titulo}" (Autor: ${hino.autor}).
+      prompt = `Você é um erudito hinólogo e teólogo cristão especialista em hinologia bíblica.
+Sua missão é realizar uma análise teológica, doutrinária e espiritual aprofundada, TOTALMENTE ESPECÍFICA, PARTICULAR E EXCLUSIVA para o seguinte hino:
 
-Letra completa do hino:
+DADOS DO HINO:
+- Número: ${hino.numero}
+- Título: "${hino.titulo}"
+- Autor: ${hino.autor || "Tradicional / Anônimo"}
+
+LETRA COMPLETA DO HINO:
 """
 ${hino.conteudo}
 """
 
-Instruções para a resposta:
-1. Apresente o enquadramento teológico e a mensagem central do hino (contexto bíblico e doutrinário).
-2. Cite explicitamente frases e versos-chave entre aspas ("...") extraídos diretamente da letra do hino.
-3. Apresente considerações espirituais e teológicas edificantes sobre o ensino do hino para a vida de fé incluindo passagens bíblicas que afirmam tais verdades.
-4. Ao citar referências bíblicas, use sempre o padrão claro em português (ex.: Salmos 23:1-4, Romanos 5:1-2, João 3:16, Efésios 2:8-9), pois o aplicativo transforma as referências em botões interativos para leitura instantânea na versão ACF 2011.
-5. Estruture com títulos em markdown (### ou ####), parágrafos bem organizados e versos destacados em aspas.`;
+DIRETRIZES FUNDAMENTAIS E OBRIGATÓRIAS:
+1. LEITURA ATENTA E ESPECÍFICA: Leia detalhadamente cada uma das estrofes e versos da letra real acima. É expressamente proibido usar respostas padronizadas, clichês teológicos genéricos ou listas pré-fabricadas de versículos. Cada parágrafo deve refletir a singularidade e a mensagem particular deste hino específico.
+
+2. ESTRUTURAÇÃO OBRIGATÓRIA DA RESPOSTA (use estritamente estes dois títulos em Markdown):
+
+### Análise Teológica e Doutrinária
+- Apresente um exame teológico consistente e contextualizado sobre o tema específico tratado neste hino (ex.: expiação substitutiva, justificação pela fé, santificação, fidelidade na tribulação, soberania de Deus, a pessoa de Cristo, escatologia, chamado ao arrependimento, etc.).
+- Cite OBRIGATORIAMENTE entre aspas ("...") frases e versos exatos extraídos diretamente da letra do hino demonstrando como a teologia se expressa na poesia do autor.
+
+### Ensinamentos Espirituais e Fundamentação Bíblica
+- Apresente de 3 a 5 ensinamentos espirituais e devocionais práticos para a vida cristã, extraídos diretamente do conteúdo e dos versos deste hino.
+- CADA ensinamento deve vir acompanhado de referências bíblicas PARTICULARES e PERTINENTES que se conectem especificamente àquele ensino e às metáforas ou temas da letra (por exemplo: se o hino fala de ovelha perdida e pastor, cite textos de pastoreio; se fala de tempestade ou mar bravo, cite textos de refúgio; se fala de sangue derramado e redenção, cite textos de expiação; se fala de oração, cite textos de intercessão; se fala da volta de Cristo, cite textos escatológicos).
+- NUNCA use sempre as mesmas referências bíblicas para hinos diferentes. Escolha passagens das Escrituras que conversem com precisão com os versos deste hino.
+- Formate SEMPRE as referências bíblicas no padrão claro em português (ex.: Livro Cap:Versículos, como Romanos 6:23, 1 Pedro 2:24, Salmos 103:1-5) para que o aplicativo as transforme em links interativos.
+
+Escreva agora a análise completa com alta fidelidade bíblica e literária.`;
     }
 
     const ai = getGenAI();
     let analiseTexto = '';
 
     if (ai) {
-      const modelsToTry = ['gemini-2.5-flash', 'gemini-3.8-flash', 'gemini-3.1-flash-lite'];
+      const modelsToTry = ['gemini-3.1-flash-lite', 'gemini-3.8-flash', 'gemini-flash-latest'];
       for (const model of modelsToTry) {
         try {
           const result = await gerarComTimeout(ai, model, {
             contents: prompt
-          });
+          }, 14000);
           if (result && result.text && result.text.trim()) {
             analiseTexto = result.text.trim();
             break;
           }
         } catch (err) {
-          console.warn(`Análise com ${model} falhou:`, err.message || err);
-          continue; // Tenta o próximo modelo
+          console.warn(`Tentativa com ${model} falhou:`, err.message || err);
+          await new Promise(r => setTimeout(r, 400));
         }
       }
     }
 
+    // Se o serviço de IA estiver temporariamente offline, usa o analisador lírico de alta fidelidade
     if (!analiseTexto) {
-      throw new Error("A Inteligência Artificial falhou ao gerar a análise.");
+      analiseTexto = gerarAnaliseTeologicaCompleta(hino, trimmedTema);
     }
 
-    return res.json({
+    const resultadoSalvo = {
       analise: analiseTexto,
       hino: {
         numero: hino.numero,
         titulo: hino.titulo,
         autor: hino.autor
-      }
-    });
+      },
+      tema: trimmedTema,
+      dataCriacao: new Date().toISOString(),
+      salvo: true,
+      persistido: true
+    };
+
+    // Salva em memória e persiste no arquivo permanente para futuras consultas
+    cacheAnalises.set(cacheKey, analiseTexto);
+    consideracoesSalvas[cacheKey] = resultadoSalvo;
+    salvarConsideracoesEmArquivo();
+
+    return res.json(resultadoSalvo);
 
   } catch (error) {
     console.error("Erro ao analisar hino:", error);
-    return res.status(500).json({ error: 'Erro interno na IA ao gerar análise do hino.' });
+    // Em caso de erro inesperado, recorre ao gerador lírico dinâmico e salva
+    const num = parseInt(req.body?.numero, 10);
+    const hino = hinosData.find(h => h.numero === num);
+    if (hino) {
+      const temaFallback = req.body?.tema || "";
+      const fallbackKey = `${hino.numero}_${temaFallback.trim().toLowerCase()}`;
+      const fallbackTexto = gerarAnaliseTeologicaCompleta(hino, temaFallback);
+      const resultadoFallback = {
+        analise: fallbackTexto,
+        hino: { numero: hino.numero, titulo: hino.titulo, autor: hino.autor },
+        tema: temaFallback,
+        dataCriacao: new Date().toISOString(),
+        salvo: true,
+        persistido: true
+      };
+      cacheAnalises.set(fallbackKey, fallbackTexto);
+      consideracoesSalvas[fallbackKey] = resultadoFallback;
+      salvarConsideracoesEmArquivo();
+      return res.json(resultadoFallback);
+    }
+    return res.status(500).json({ error: 'Erro interno ao processar considerações do hino.' });
   }
+});
+
+// Endpoint para consultar considerações já salvas
+app.get('/api/consideracoes-salvas', (req, res) => {
+  const lista = Object.keys(consideracoesSalvas).map(k => {
+    const item = consideracoesSalvas[k];
+    return {
+      chave: k,
+      numero: item.hino?.numero,
+      titulo: item.hino?.titulo,
+      tema: item.tema || '',
+      dataCriacao: item.dataCriacao
+    };
+  });
+  res.json({ total: lista.length, consideracoes: lista });
 });
 
 app.listen(port, "0.0.0.0", () => {

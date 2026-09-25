@@ -1,0 +1,27 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isValidId(id) {
+      return id is string && id.matches('^[a-zA-Z0-9_\\-]+$') && id.size() > 0 && id.size() <= 64;
+    }
+
+    function isValidConsideracao(data) {
+      return data.keys().hasAll(['numero', 'titulo', 'analise']) &&
+        (data.numero is int || data.numero is number) && data.numero > 0 &&
+        data.titulo is string && data.titulo.size() > 0 && data.titulo.size() <= 250 &&
+        data.analise is string && data.analise.size() > 0 && data.analise.size() <= 50000 &&
+        (!('autor' in data) || (data.autor is string && data.autor.size() <= 250)) &&
+        (!('tema' in data) || (data.tema is string && data.tema.size() <= 250)) &&
+        (!('dataCriacao' in data) || (data.dataCriacao is string && data.dataCriacao.size() <= 60)) &&
+        (!('salvoEm' in data) || (data.salvoEm is string && data.salvoEm.size() <= 60));
+    }
+
+    match /consideracoes/{consideracaoId} {
+      allow get: if isValidId(consideracaoId);
+      allow list: if true;
+      allow create, update: if isValidId(consideracaoId) && isValidConsideracao(request.resource.data);
+      allow delete: if false;
+    }
+  }
+}
